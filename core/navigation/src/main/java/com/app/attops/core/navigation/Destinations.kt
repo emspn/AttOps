@@ -37,6 +37,12 @@ sealed interface Destination {
     data object Employees : Destination
 
     @Serializable
+    data object AddEmployee : Destination
+
+    @Serializable
+    data class EditEmployee(val employeeId: String) : Destination
+
+    @Serializable
     data object Reports : Destination
 
     @Serializable

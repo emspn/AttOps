@@ -25,6 +25,7 @@ fun AttOpsTextField(
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
     isError: Boolean = false,
+    enabled: Boolean = true,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     singleLine: Boolean = true
@@ -38,6 +39,7 @@ fun AttOpsTextField(
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
         isError = isError,
+        enabled = enabled,
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         singleLine = singleLine,
@@ -45,11 +47,13 @@ fun AttOpsTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = RoyalBlue,
             unfocusedBorderColor = GraySecondary,
+            disabledBorderColor = GraySecondary.copy(alpha = 0.5f),
             focusedLabelColor = RoyalBlue,
             unfocusedLabelColor = GraySecondary,
             cursorColor = RoyalBlue,
             focusedTextColor = White,
-            unfocusedTextColor = White
+            unfocusedTextColor = White,
+            disabledTextColor = White.copy(alpha = 0.5f)
         )
     )
 }
