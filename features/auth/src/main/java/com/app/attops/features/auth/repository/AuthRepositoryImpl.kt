@@ -10,9 +10,7 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import kotlin.random.Random
 import java.util.UUID
@@ -46,8 +44,6 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signInWithGoogle(): Result<User> {
         return try {
-            // Placeholder: In a real device, this would use Credential Manager
-            // For verification, we assume the user is authenticated via Supabase Auth
             val authUser = supabaseAuth.currentUserOrNull() ?: return Result.Error(message = "Google Sign-In cancelled")
             
             val existingUser = postgrest.from("users")
@@ -59,7 +55,6 @@ class AuthRepositoryImpl @Inject constructor(
             if (existingUser != null) {
                 Result.Success(existingUser)
             } else {
-                // Return a dummy user with empty Org ID to trigger Org Creation flow
                 Result.Success(User(id = authUser.id, organizationId = "", name = authUser.userMetadata?.get("full_name")?.toString() ?: "Head", role = UserRole.HEAD))
             }
         } catch (e: Exception) {

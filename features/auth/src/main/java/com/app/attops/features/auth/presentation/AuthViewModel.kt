@@ -3,7 +3,6 @@ package com.app.attops.features.auth.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.attops.core.common.result.Result
-import com.app.attops.core.network.model.User
 import com.app.attops.features.auth.usecase.CheckSessionUseCase
 import com.app.attops.features.auth.usecase.CreateOrganizationUseCase
 import com.app.attops.features.auth.usecase.LoginUseCase
