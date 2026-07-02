@@ -47,6 +47,11 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     
+    // Credentials & Google Identity
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
     // Navigation
     implementation(libs.androidx.navigation.compose)
     

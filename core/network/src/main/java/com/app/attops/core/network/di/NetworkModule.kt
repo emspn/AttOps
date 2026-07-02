@@ -1,5 +1,6 @@
 package com.app.attops.core.network.di
 
+import com.app.attops.core.network.BuildConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,8 +23,8 @@ object NetworkModule {
     @Singleton
     fun provideSupabaseClient(): SupabaseClient {
         return createSupabaseClient(
-            supabaseUrl = "https://your-project-url.supabase.co",
-            supabaseKey = "your-anon-key"
+            supabaseUrl = BuildConfig.SUPABASE_URL,
+            supabaseKey = BuildConfig.SUPABASE_ANON_KEY
         ) {
             install(Auth)
             install(Postgrest)
