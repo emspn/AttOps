@@ -8,28 +8,37 @@ import kotlinx.serialization.Serializable
 sealed interface Destination {
     @Serializable
     data object AuthGraph : Destination
-    
-    @Serializable
-    data object Login : Destination
 
     @Serializable
-    data object MainGraph : Destination
-    
+    data object Splash : Destination
+
+    @Serializable
+    data object AuthChoice : Destination
+
+    @Serializable
+    data object GoogleLogin : Destination
+
+    @Serializable
+    data object OrgCreation : Destination
+
+    @Serializable
+    data object EmployeeLogin : Destination
+
     @Serializable
     data object Dashboard : Destination
 
     @Serializable
     data object Attendance : Destination
-    
+
     @Serializable
     data object Tasks : Destination
-    
+
     @Serializable
     data object Employees : Destination
-    
+
     @Serializable
     data object Reports : Destination
-    
+
     @Serializable
     data object Profile : Destination
 }

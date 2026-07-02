@@ -30,3 +30,6 @@ include(":core:network")
 include(":core:location")
 include(":core:camera")
 include(":core:navigation")
+
+// Features
+include(":features:auth")

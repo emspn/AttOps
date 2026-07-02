@@ -37,16 +37,16 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     
-    // Supabase
-    implementation(platform(libs.supabase.bom))
-    implementation(libs.supabase.postgrest)
-    implementation(libs.supabase.auth)
-    implementation(libs.supabase.storage)
+    // Supabase - Using 'api' to make it available to feature modules
+    api(platform(libs.supabase.bom))
+    api(libs.supabase.postgrest)
+    api(libs.supabase.auth)
+    api(libs.supabase.storage)
     
     // Hilt
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     
     // Serialization
-    implementation(libs.kotlinx.serialization.json)
+    api(libs.kotlinx.serialization.json)
 }
