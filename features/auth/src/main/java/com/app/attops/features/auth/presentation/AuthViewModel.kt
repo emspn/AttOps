@@ -3,6 +3,7 @@ package com.app.attops.features.auth.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.attops.core.common.result.Result
+import com.app.attops.core.network.model.User
 import com.app.attops.features.auth.usecase.CheckSessionUseCase
 import com.app.attops.features.auth.usecase.CreateOrganizationUseCase
 import com.app.attops.features.auth.usecase.LoginUseCase
@@ -38,7 +39,9 @@ class AuthViewModel @Inject constructor(
 
     private fun checkSession() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
             checkSessionUseCase().collect { user ->
+                _uiState.update { it.copy(isLoading = false) }
                 if (user != null) {
                     _uiState.update { it.copy(isAuthenticated = true, user = user) }
                     _uiEvent.emit(AuthUiEvent.NavigateToDashboard)
@@ -59,15 +62,15 @@ class AuthViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, error = result.message) }
                     _uiEvent.emit(AuthUiEvent.ShowError(result.message ?: "Login failed"))
                 }
-                is Result.Loading -> { /* Handled by initial state update */ }
+                is Result.Loading -> {}
             }
         }
     }
 
-    fun signInWithGoogle() {
+    fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            when (val result = signInWithGoogleUseCase()) {
+            when (val result = signInWithGoogleUseCase(idToken)) {
                 is Result.Success -> {
                     if (result.data.organizationId.isEmpty()) {
                         _uiState.update { it.copy(isLoading = false, isFirstLogin = true, user = result.data) }
@@ -107,6 +110,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             signOutUseCase()
             _uiState.update { AuthUiState() }
+            // Navigation to Login should be handled by NavGraph observing AuthState or explicit event
         }
     }
 }

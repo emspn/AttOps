@@ -38,8 +38,8 @@ fun NavGraphBuilder.authNavGraph(navController: NavHostController) {
         composable<Destination.AuthChoice> {
             val viewModel: AuthViewModel = hiltViewModel()
             AuthChoiceScreen(
-                onGoogleSignInClick = {
-                    viewModel.signInWithGoogle()
+                onGoogleSignInSuccess = { idToken ->
+                    viewModel.signInWithGoogle(idToken)
                 },
                 onEmployeeLoginClick = {
                     navController.navigate(Destination.EmployeeLogin)

@@ -57,6 +57,7 @@ dependencies {
     api(libs.supabase.postgrest)
     api(libs.supabase.auth)
     api(libs.supabase.storage)
+    api(libs.supabase.functions)
     
     // Ktor Engine
     api(libs.ktor.client.android)

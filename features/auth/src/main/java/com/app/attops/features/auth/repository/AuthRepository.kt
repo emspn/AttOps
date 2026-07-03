@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 interface AuthRepository {
     fun getCurrentUser(): Flow<User?>
     
-    suspend fun signInWithGoogle(): Result<User>
+    suspend fun signInWithGoogle(idToken: String): Result<User>
     
     suspend fun loginWithEmployeeId(
         orgCode: String,

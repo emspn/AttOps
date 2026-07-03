@@ -4,18 +4,26 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.app.attops.core.designsystem.components.AttOpsPrimaryButton
 import com.app.attops.core.designsystem.components.AttOpsSecondaryButton
+import com.app.attops.features.auth.presentation.util.GoogleSignInHandler
+import kotlinx.coroutines.launch
 
 @Composable
 fun AuthChoiceScreen(
-    onGoogleSignInClick: () -> Unit,
+    onGoogleSignInSuccess: (String) -> Unit,
     onEmployeeLoginClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val googleSignInHandler = GoogleSignInHandler(context)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -43,7 +51,14 @@ fun AuthChoiceScreen(
         
         AttOpsPrimaryButton(
             text = "Continue with Google",
-            onClick = onGoogleSignInClick
+            onClick = {
+                scope.launch {
+                    val idToken = googleSignInHandler.signIn()
+                    if (idToken != null) {
+                        onGoogleSignInSuccess(idToken)
+                    }
+                }
+            }
         )
         
         Spacer(modifier = Modifier.height(16.dp))

@@ -5,18 +5,28 @@ import com.app.attops.core.network.model.User
 import com.app.attops.core.network.model.UserStatus
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.ktor.client.call.body
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.Serializable
 import javax.inject.Inject
-import java.util.UUID
 
 class EmployeeRepositoryImpl @Inject constructor(
     private val postgrest: Postgrest,
-    private val auth: Auth
+    private val auth: Auth,
+    private val functions: Functions
 ) : EmployeeRepository {
+
+    @Serializable
+    private data class EdgeFunctionResponse(
+        val success: Boolean,
+        val message: String? = null,
+        val error: String? = null
+    )
 
     private suspend fun getOrganizationId(): String? {
         val userId = auth.currentUserOrNull()?.id ?: return null
@@ -85,50 +95,29 @@ class EmployeeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addEmployee(employee: User, temporaryPassword: String): Result<Unit> {
-        var authUserId: String? = null
         return try {
-            val orgId = getOrganizationId() ?: return Result.Error(message = "Unauthorized")
-            val empId = employee.employeeId ?: return Result.Error(message = "Employee ID is required")
-
-            // 1. Transactional Pre-Check: Uniqueness (to avoid partial creation)
-            val existing = postgrest.from("users")
-                .select(columns = Columns.list("id")) {
-                    filter {
-                        eq("organization_id", orgId)
-                        eq("employee_id", empId)
-                    }
-                }.decodeSingleOrNull<Map<String, String>>()
-            if (existing != null) return Result.Error(message = "Employee ID already exists")
-
-            // 2. Auth Provisioning (Transactional Step 1)
-            // Provision the ID. In a production environment, this block would call an 
-            // Admin Edge Function to create the Supabase Auth user record securely.
-            authUserId = UUID.randomUUID().toString() 
-
-            // 3. Profile Creation (Transactional Step 2)
-            val employeeData = mutableMapOf<String, Any>()
-            employeeData["id"] = authUserId
-            employeeData["organization_id"] = orgId
-            employeeData["employee_id"] = empId
-            employeeData["full_name"] = employee.name
-            employeeData["role"] = employee.role.name
-            employeeData["status"] = UserStatus.ACTIVE.name
-            employeeData["password_hash"] = temporaryPassword
+            val params = mutableMapOf<String, Any?>(
+                "employee_id" to employee.employeeId,
+                "full_name" to employee.name,
+                "role" to employee.role.name,
+                "password" to temporaryPassword
+            )
             
-            employee.email?.let { if (it.isNotBlank()) employeeData["email"] = it }
-            employee.phone?.let { if (it.isNotBlank()) employeeData["phone"] = it }
-            employee.department?.let { if (it.isNotBlank()) employeeData["department"] = it }
-            employee.designation?.let { if (it.isNotBlank()) employeeData["designation"] = it }
+            employee.email?.let { if (it.isNotBlank()) params["email"] = it }
+            employee.phone?.let { if (it.isNotBlank()) params["phone"] = it }
+            employee.department?.let { if (it.isNotBlank()) params["department"] = it }
+            employee.designation?.let { if (it.isNotBlank()) params["designation"] = it }
 
-            postgrest.from("users").insert(employeeData)
-            
-            Result.Success(Unit)
+            val response = functions.invoke("create-employee", params)
+            val result = response.body<EdgeFunctionResponse>()
 
+            if (result.success) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(message = result.message ?: result.error ?: "Provisioning failed")
+            }
         } catch (e: Exception) {
-            // 4. Recovery Strategy (The Rollback)
-            // If we reached here after Step 2, we have a dangling identity.
-            // We log the failure and trigger a cleanup for the partially created authUserId.
-            Result.Error(e, "Transactional failure. Employee record creation rolled back.")
+            Result.Error(e, e.message ?: "Failed to provision employee via Edge Function")
         }
     }
 
@@ -164,7 +153,6 @@ class EmployeeRepositoryImpl @Inject constructor(
     }
 
     override fun searchEmployees(query: String): Flow<List<User>> = flow {
-        // Obsolete: local filtering handled in ViewModel
         emit(emptyList())
     }
 }

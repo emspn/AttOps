@@ -4,7 +4,10 @@ import com.app.attops.core.common.result.Result
 import com.app.attops.core.network.model.Organization
 import com.app.attops.core.network.model.User
 import com.app.attops.core.network.model.UserRole
+import com.app.attops.core.network.model.UserStatus
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.providers.Google
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
@@ -12,7 +15,6 @@ import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
-import kotlin.random.Random
 import java.util.UUID
 
 class AuthRepositoryImpl @Inject constructor(
@@ -42,9 +44,13 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun signInWithGoogle(): Result<User> {
+    override suspend fun signInWithGoogle(idToken: String): Result<User> {
         return try {
-            val authUser = supabaseAuth.currentUserOrNull() ?: return Result.Error(message = "Google Sign-In cancelled")
+            supabaseAuth.signInWith(Google) {
+                this.idToken = idToken
+            }
+
+            val authUser = supabaseAuth.currentUserOrNull() ?: return Result.Error(message = "Google Sign-In failed")
             
             val existingUser = postgrest.from("users")
                 .select(columns = Columns.ALL) {
@@ -55,7 +61,17 @@ class AuthRepositoryImpl @Inject constructor(
             if (existingUser != null) {
                 Result.Success(existingUser)
             } else {
-                Result.Success(User(id = authUser.id, organizationId = "", name = authUser.userMetadata?.get("full_name")?.toString() ?: "Head", role = UserRole.HEAD))
+                // First login: trigger Org Creation
+                Result.Success(
+                    User(
+                        id = authUser.id,
+                        organizationId = "",
+                        name = authUser.userMetadata?.get("full_name")?.toString() ?: "Head",
+                        email = authUser.email,
+                        role = UserRole.HEAD,
+                        status = UserStatus.ACTIVE
+                    )
+                )
             }
         } catch (e: Exception) {
             Result.Error(e)
@@ -68,25 +84,27 @@ class AuthRepositoryImpl @Inject constructor(
         password: String
     ): Result<User> {
         return try {
-            val organization = postgrest.from("organizations")
-                .select(columns = Columns.ALL) {
-                    filter { eq("org_code", orgCode) }
-                }
-                .decodeSingleOrNull<Organization>() ?: return Result.Error(message = "Invalid Organization Code")
+            // For RLS and Session integrity, we use deterministic email login
+            val deterministicEmail = "${employeeId.lowercase()}@${orgCode.lowercase()}.attops.com"
+            
+            supabaseAuth.signInWith(Email) {
+                this.email = deterministicEmail
+                this.password = password
+            }
 
+            val authUser = supabaseAuth.currentUserOrNull() ?: return Result.Error(message = "Authentication failed")
+            
             val user = postgrest.from("users")
                 .select(columns = Columns.ALL) {
                     filter {
-                        eq("organization_id", organization.id)
-                        eq("employee_id", employeeId)
-                        eq("password_hash", password)
+                        eq("id", authUser.id)
                     }
                 }
-                .decodeSingleOrNull<User>() ?: return Result.Error(message = "Invalid Credentials")
+                .decodeSingleOrNull<User>() ?: return Result.Error(message = "Profile not found")
 
             Result.Success(user)
         } catch (e: Exception) {
-            Result.Error(e)
+            Result.Error(e, "Invalid credentials or organization code")
         }
     }
 
@@ -117,7 +135,8 @@ class AuthRepositoryImpl @Inject constructor(
                 organizationId = newOrg.id,
                 name = authUser.userMetadata?.get("full_name")?.toString() ?: "Head",
                 email = authUser.email,
-                role = UserRole.HEAD
+                role = UserRole.HEAD,
+                status = UserStatus.ACTIVE
             )
             postgrest.from("users").insert(ownerUser)
 
@@ -138,6 +157,6 @@ class AuthRepositoryImpl @Inject constructor(
 
     private fun generateOrgCode(): String {
         val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return "ATT-" + (1..6).map { chars[Random.nextInt(chars.length)] }.joinToString("")
+        return "ATT-" + (1..6).map { chars[java.util.Random().nextInt(chars.length)] }.joinToString("")
     }
 }
