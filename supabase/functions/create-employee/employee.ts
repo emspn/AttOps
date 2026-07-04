@@ -17,11 +17,11 @@ export async function checkUniqueness(
 
   if (idError) {
     console.error("[Employee] Error checking ID uniqueness:", idError);
-    throw new HttpError("Database error during uniqueness check.", 500, "DbError");
+    throw new HttpError("A database error occurred. Please try again.", 500, "DbError");
   }
 
   if (idExists) {
-    throw new HttpError("Employee ID already exists in your organization.", 409, "DuplicateError");
+    throw new HttpError("This Employee ID is already registered in your organization.", 409, "DuplicateError");
   }
 
   // 2. Check global email uniqueness
@@ -34,11 +34,11 @@ export async function checkUniqueness(
 
     if (emailError) {
       console.error("[Employee] Error checking email uniqueness:", emailError);
-      throw new HttpError("Database error during email check.", 500, "DbError");
+      throw new HttpError("A database error occurred. Please try again.", 500, "DbError");
     }
 
     if (emailExists) {
-      throw new HttpError("Email is already registered on the platform.", 409, "DuplicateError");
+      throw new HttpError("This email address is already in use.", 409, "DuplicateError");
     }
   }
 }

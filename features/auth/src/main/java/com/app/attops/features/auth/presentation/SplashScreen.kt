@@ -12,20 +12,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun SplashScreen(
     viewModel: AuthViewModel,
     onNavigateToAuth: () -> Unit,
-    onNavigateToMain: () -> Unit
+    onNavigateToDashboard: () -> Unit,
+    onNavigateToOrgCreation: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(uiState.isAuthenticated) {
-        // Wait for session check to complete
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is AuthUiEvent.NavigateToDashboard -> onNavigateToDashboard()
+                is AuthUiEvent.NavigateToOrgCreation -> onNavigateToOrgCreation()
+                else -> {}
+            }
+        }
+    }
+
+    // Handle initial navigation if session check completes without events
+    LaunchedEffect(uiState.isLoading) {
         if (!uiState.isLoading) {
             if (uiState.isAuthenticated) {
-                onNavigateToMain()
+                uiState.user?.let { user ->
+                    if (user.organizationId.isEmpty()) {
+                        onNavigateToOrgCreation()
+                    } else {
+                        onNavigateToDashboard()
+                    }
+                }
             } else {
                 onNavigateToAuth()
             }

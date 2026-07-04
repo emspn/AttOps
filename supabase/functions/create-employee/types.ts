@@ -1,9 +1,7 @@
-export type UserRole = "HEAD" | "ADMIN" | "EMPLOYEE";
-
 export interface CreateEmployeeRequest {
   employee_id: string;
   full_name: string;
-  role: UserRole;
+  role: "ADMIN" | "EMPLOYEE";
   password: string;
   email?: string;
   phone?: string;
@@ -14,20 +12,16 @@ export interface CreateEmployeeRequest {
 export interface CallerProfile {
   id: string;
   organization_id: string;
-  role: UserRole;
+  role: string;
   org_code: string;
 }
 
-export interface FunctionResponse {
-  success: boolean;
-  employee_id?: string;
-  user_id?: string;
-  error?: string;
-  message?: string;
-}
-
 export class HttpError extends Error {
-  constructor(public message: string, public status: number, public errorType: string = "Error") {
+  constructor(
+    public message: string,
+    public status: number,
+    public errorType: string
+  ) {
     super(message);
     this.name = "HttpError";
   }

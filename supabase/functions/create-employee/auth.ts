@@ -34,7 +34,7 @@ export async function getCallerProfile(supabase: SupabaseClient): Promise<Caller
   }
 
   if (!["HEAD", "ADMIN"].includes(profile.role)) {
-    throw new HttpError("Forbidden: Only HEAD or ADMIN can perform this action.", 403, "PermissionError");
+    throw new HttpError("Forbidden: Only OWNER or ADMIN can perform this action.", 403, "PermissionError");
   }
 
   return {

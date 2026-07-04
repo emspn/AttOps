@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 interface AuthRepository {
     fun getCurrentUser(): Flow<User?>
     
-    suspend fun signInWithGoogle(idToken: String): Result<User>
+    suspend fun signInWithGoogle(idToken: String, nonce: String? = null): Result<User>
     
     suspend fun loginWithEmployeeId(
         orgCode: String,
@@ -19,8 +19,7 @@ interface AuthRepository {
     suspend fun createOrganization(
         name: String,
         businessType: String,
-        phone: String,
-        address: String?
+        address: String
     ): Result<Organization>
     
     suspend fun signOut(): Result<Unit>

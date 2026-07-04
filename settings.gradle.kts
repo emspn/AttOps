@@ -34,3 +34,4 @@ include(":core:navigation")
 // Features
 include(":features:auth")
 include(":features:employee")
+include(":features:dashboard")

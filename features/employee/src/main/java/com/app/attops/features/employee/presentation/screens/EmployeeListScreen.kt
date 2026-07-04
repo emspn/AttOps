@@ -23,10 +23,10 @@ import com.app.attops.features.employee.presentation.viewmodel.EmployeeViewModel
 fun EmployeeListScreen(
     viewModel: EmployeeViewModel,
     onEmployeeClick: (String) -> Unit,
-    onAddEmployeeClick: () -> Unit,
-    currentUserRole: UserRole? = null
+    onAddEmployeeClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentUserRole = uiState.currentUserRole
 
     Scaffold(
         topBar = {
@@ -39,8 +39,8 @@ fun EmployeeListScreen(
             )
         },
         floatingActionButton = {
-            // Only Head or Admin can add employees
-            if (currentUserRole == UserRole.HEAD || currentUserRole == UserRole.ADMIN) {
+            // Only Owner or Admin can add employees
+            if (currentUserRole == UserRole.OWNER || currentUserRole == UserRole.ADMIN) {
                 FloatingActionButton(
                     onClick = onAddEmployeeClick,
                     containerColor = MaterialTheme.colorScheme.primary,

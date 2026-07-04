@@ -108,34 +108,44 @@ fun EditEmployeeScreen(
                     label = "Phone Number"
                 )
 
-                // Role Selection
-                ExposedDropdownMenuBox(
-                    expanded = roleExpanded,
-                    onExpandedChange = { roleExpanded = !roleExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = role.name,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Role") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = roleExpanded) },
-                        modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
-                    )
-                    ExposedDropdownMenu(
+                // Role Selection (Only editable by OWNER)
+                if (uiState.currentUserRole == UserRole.OWNER) {
+                    ExposedDropdownMenuBox(
                         expanded = roleExpanded,
-                        onDismissRequest = { roleExpanded = false }
+                        onExpandedChange = { roleExpanded = !roleExpanded }
                     ) {
-                        UserRole.entries.forEach { roleOption ->
-                            DropdownMenuItem(
-                                text = { Text(roleOption.name) },
-                                onClick = {
-                                    role = roleOption
-                                    roleExpanded = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = role.name,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Role") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = roleExpanded) },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = roleExpanded,
+                            onDismissRequest = { roleExpanded = false }
+                        ) {
+                            listOf(UserRole.EMPLOYEE, UserRole.ADMIN).forEach { roleOption ->
+                                DropdownMenuItem(
+                                    text = { Text(roleOption.name) },
+                                    onClick = {
+                                        role = roleOption
+                                        roleExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
+                } else {
+                    // Admin or Employee see a read-only role field
+                    AttOpsTextField(
+                        value = role.name,
+                        onValueChange = {},
+                        label = "Role",
+                        enabled = false
+                    )
                 }
 
                 // Status Selection

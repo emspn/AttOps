@@ -53,6 +53,7 @@ dependencies {
     // Features
     implementation(project(":features:auth"))
     implementation(project(":features:employee"))
+    implementation(project(":features:dashboard"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

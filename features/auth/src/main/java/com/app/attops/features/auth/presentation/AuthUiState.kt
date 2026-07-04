@@ -7,11 +7,13 @@ data class AuthUiState(
     val error: String? = null,
     val isAuthenticated: Boolean = false,
     val user: User? = null,
-    val isFirstLogin: Boolean = false
+    val isFirstLogin: Boolean = false,
+    val createdOrgCode: String? = null
 )
 
 sealed interface AuthUiEvent {
     data class ShowError(val message: String) : AuthUiEvent
     data object NavigateToDashboard : AuthUiEvent
     data object NavigateToOrgCreation : AuthUiEvent
+    data class NavigateToOrgCreationSuccess(val orgCode: String) : AuthUiEvent
 }

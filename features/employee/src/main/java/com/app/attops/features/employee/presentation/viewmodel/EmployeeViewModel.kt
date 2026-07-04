@@ -10,6 +10,7 @@ import com.app.attops.features.employee.presentation.state.EmployeeUiEvent
 import com.app.attops.features.employee.presentation.state.EmployeeUiState
 import com.app.attops.features.employee.usecase.AddEmployeeUseCase
 import com.app.attops.features.employee.usecase.DeleteEmployeeUseCase
+import com.app.attops.features.employee.usecase.GetCurrentUserUseCase
 import com.app.attops.features.employee.usecase.GetEmployeeUseCase
 import com.app.attops.features.employee.usecase.GetEmployeesUseCase
 import com.app.attops.features.employee.usecase.UpdateEmployeeUseCase
@@ -28,6 +29,7 @@ import javax.inject.Inject
 class EmployeeViewModel @Inject constructor(
     private val getEmployeesUseCase: GetEmployeesUseCase,
     private val getEmployeeUseCase: GetEmployeeUseCase,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val addEmployeeUseCase: AddEmployeeUseCase,
     private val updateEmployeeUseCase: UpdateEmployeeUseCase,
     private val deleteEmployeeUseCase: DeleteEmployeeUseCase
@@ -42,7 +44,18 @@ class EmployeeViewModel @Inject constructor(
     private var allEmployees = listOf<User>()
 
     init {
-        loadEmployees()
+        loadData()
+    }
+
+    private fun loadData() {
+        viewModelScope.launch {
+            // Fetch role first
+            getCurrentUserUseCase().collect { user ->
+                _uiState.update { it.copy(currentUserRole = user?.role) }
+                // Then trigger employee list load
+                loadEmployees()
+            }
+        }
     }
 
     fun loadEmployees() {
@@ -118,7 +131,9 @@ class EmployeeViewModel @Inject constructor(
                 }
                 is Result.Error -> {
                     _uiState.update { it.copy(isSaving = false, error = result.message) }
-                    _uiEvent.emit(EmployeeUiEvent.ShowError(result.message ?: "Failed to add employee"))
+                    viewModelScope.launch {
+                        _uiEvent.emit(EmployeeUiEvent.ShowError(result.message ?: "Failed to add employee"))
+                    }
                 }
                 else -> {}
             }
@@ -136,7 +151,9 @@ class EmployeeViewModel @Inject constructor(
                 }
                 is Result.Error -> {
                     _uiState.update { it.copy(isSaving = false, error = result.message) }
-                    _uiEvent.emit(EmployeeUiEvent.ShowError(result.message ?: "Failed to update employee"))
+                    viewModelScope.launch {
+                        _uiEvent.emit(EmployeeUiEvent.ShowError(result.message ?: "Failed to update employee"))
+                    }
                 }
                 else -> {}
             }
@@ -154,7 +171,9 @@ class EmployeeViewModel @Inject constructor(
                 }
                 is Result.Error -> {
                     _uiState.update { it.copy(isSaving = false, error = result.message) }
-                    _uiEvent.emit(EmployeeUiEvent.ShowError(result.message ?: "Failed to delete employee"))
+                    viewModelScope.launch {
+                        _uiEvent.emit(EmployeeUiEvent.ShowError(result.message ?: "Failed to delete employee"))
+                    }
                 }
                 else -> {}
             }

@@ -10,7 +10,7 @@ data class Organization(
     @SerialName("business_type") val businessType: String,
     @SerialName("org_code") val orgCode: String,
     @SerialName("owner_id") val ownerId: String,
-    @SerialName("phone") val phone: String,
-    @SerialName("address") val address: String? = null,
+    @SerialName("address") val address: String,
+    @SerialName("phone") val phone: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )

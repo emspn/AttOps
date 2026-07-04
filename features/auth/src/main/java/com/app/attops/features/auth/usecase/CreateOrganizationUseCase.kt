@@ -11,12 +11,11 @@ class CreateOrganizationUseCase @Inject constructor(
     suspend operator fun invoke(
         name: String,
         businessType: String,
-        phone: String,
-        address: String?
+        address: String
     ): Result<Organization> {
-        if (name.isBlank() || businessType.isBlank() || phone.isBlank()) {
+        if (name.isBlank() || businessType.isBlank() || address.isBlank()) {
             return Result.Error(message = "Required fields are missing")
         }
-        return repository.createOrganization(name, businessType, phone, address)
+        return repository.createOrganization(name, businessType, address)
     }
 }

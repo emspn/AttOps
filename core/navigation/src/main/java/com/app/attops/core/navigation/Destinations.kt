@@ -22,6 +22,9 @@ sealed interface Destination {
     data object OrgCreation : Destination
 
     @Serializable
+    data class OrgCreationSuccess(val orgCode: String) : Destination
+
+    @Serializable
     data object EmployeeLogin : Destination
 
     @Serializable

@@ -14,7 +14,9 @@ import com.app.attops.core.common.util.PasswordGenerator
 import com.app.attops.core.designsystem.components.AttOpsPrimaryButton
 import com.app.attops.core.designsystem.components.AttOpsTextField
 import com.app.attops.core.network.model.UserRole
+import com.app.attops.features.employee.presentation.state.EmployeeUiEvent
 import com.app.attops.features.employee.presentation.viewmodel.EmployeeViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,6 +24,9 @@ fun AddEmployeeScreen(
     viewModel: EmployeeViewModel,
     onBackClick: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     var employeeId by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -32,7 +37,26 @@ fun AddEmployeeScreen(
     var role by remember { mutableStateOf(UserRole.EMPLOYEE) }
     var expanded by remember { mutableStateOf(false) }
 
+    // Validation States
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var employeeIdError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is EmployeeUiEvent.ShowError -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+                is EmployeeUiEvent.NavigateBack -> {
+                    onBackClick()
+                }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Add Employee") },
@@ -52,16 +76,30 @@ fun AddEmployeeScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (uiState.isSaving) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
             AttOpsTextField(
                 value = name,
-                onValueChange = { name = it },
-                label = "Full Name"
+                onValueChange = { 
+                    name = it
+                    nameError = if (it.isBlank()) "Name is required" else null
+                },
+                label = "Full Name",
+                isError = nameError != null,
+                supportingText = nameError?.let { { Text(it) } }
             )
 
             AttOpsTextField(
                 value = employeeId,
-                onValueChange = { employeeId = it },
-                label = "Employee ID"
+                onValueChange = { 
+                    employeeId = it
+                    employeeIdError = if (it.isBlank()) "Employee ID is required" else null
+                },
+                label = "Employee ID",
+                isError = employeeIdError != null,
+                supportingText = employeeIdError?.let { { Text(it) } }
             )
 
             AttOpsTextField(
@@ -79,19 +117,24 @@ fun AddEmployeeScreen(
             AttOpsTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = "Email"
+                label = "Email (Optional)"
             )
 
             AttOpsTextField(
                 value = phone,
                 onValueChange = { phone = it },
-                label = "Phone Number"
+                label = "Phone Number (Optional)"
             )
 
             AttOpsTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { 
+                    password = it
+                    passwordError = if (it.length < 8) "Password must be at least 8 characters" else null
+                },
                 label = "Temporary Password",
+                isError = passwordError != null,
+                supportingText = passwordError?.let { { Text(it) } },
                 trailingIcon = {
                     IconButton(onClick = { password = PasswordGenerator.generate() }) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = "Regenerate")
@@ -117,7 +160,14 @@ fun AddEmployeeScreen(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    UserRole.entries.forEach { roleOption ->
+                    // Determine available roles based on current user's role
+                    val availableRoles = if (uiState.currentUserRole == UserRole.OWNER) {
+                        listOf(UserRole.EMPLOYEE, UserRole.ADMIN)
+                    } else {
+                        listOf(UserRole.EMPLOYEE)
+                    }
+
+                    availableRoles.forEach { roleOption ->
                         DropdownMenuItem(
                             text = { Text(roleOption.name) },
                             onClick = {
@@ -134,18 +184,24 @@ fun AddEmployeeScreen(
             AttOpsPrimaryButton(
                 text = "Create Employee",
                 onClick = {
-                    viewModel.addEmployee(
-                        employeeId = employeeId,
-                        name = name,
-                        email = email.ifBlank { null },
-                        phone = phone.ifBlank { null },
-                        department = department.ifBlank { null },
-                        designation = designation.ifBlank { null },
-                        role = role,
-                        password = password
-                    )
+                    if (name.isBlank()) nameError = "Name is required"
+                    if (employeeId.isBlank()) employeeIdError = "Employee ID is required"
+                    if (password.length < 8) passwordError = "Password too short"
+                    
+                    if (nameError == null && employeeIdError == null && passwordError == null) {
+                        viewModel.addEmployee(
+                            employeeId = employeeId.trim(),
+                            name = name.trim(),
+                            email = email.trim().ifBlank { null },
+                            phone = phone.trim().ifBlank { null },
+                            department = department.trim().ifBlank { null },
+                            designation = designation.trim().ifBlank { null },
+                            role = role,
+                            password = password
+                        )
+                    }
                 },
-                enabled = name.isNotBlank() && employeeId.isNotBlank() && password.isNotBlank()
+                enabled = !uiState.isSaving
             )
         }
     }
