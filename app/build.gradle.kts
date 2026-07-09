@@ -54,6 +54,7 @@ dependencies {
     implementation(project(":features:auth"))
     implementation(project(":features:employee"))
     implementation(project(":features:dashboard"))
+    implementation(project(":features:tasks"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -71,6 +72,11 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    kapt(libs.androidx.hilt.compiler)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
     
     // Supabase
     implementation(platform(libs.supabase.bom))

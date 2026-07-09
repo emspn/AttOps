@@ -11,8 +11,9 @@ import javax.inject.Inject
 data class DashboardData(
     val user: User,
     val organization: Organization,
-    val employeeCount: Int,
-    val adminCount: Int,
+    val employeeCount: Int = 0,
+    val adminCount: Int = 0,
+    val taskStats: Map<String, Int> = emptyMap()
 )
 
 class GetDashboardDataUseCase @Inject constructor(
@@ -23,24 +24,30 @@ class GetDashboardDataUseCase @Inject constructor(
         repository.getOrganizationDetails(),
         repository.getEmployeeCount(),
         repository.getAdminCount(),
-    ) { user, orgResult, countResult, adminResult ->
-        if (user == null) return@combine Result.Error(message = "User profile not found. Please try logging in again.")
+        repository.getTaskStats(),
+    ) { user, orgResult, countResult, adminResult, taskResult ->
+        if (user == null) return@combine Result.Error(message = "Session expired. Please login again.")
         
-        when {
-            (orgResult is Result.Success) && (countResult is Result.Success) && (adminResult is Result.Success) -> {
-                Result.Success(
-                    DashboardData(
-                        user = user,
-                        organization = orgResult.data,
-                        employeeCount = countResult.data,
-                        adminCount = adminResult.data,
-                    )
+        // Extract data safely, falling back to defaults if stats fail
+        val org = (orgResult as? Result.Success)?.data
+        val empCount = (countResult as? Result.Success)?.data ?: 0
+        val adminCount = (adminResult as? Result.Success)?.data ?: 0
+        val tasks = (taskResult as? Result.Success)?.data ?: emptyMap()
+
+        if (org != null) {
+            Result.Success(
+                DashboardData(
+                    user = user,
+                    organization = org,
+                    employeeCount = empCount,
+                    adminCount = adminCount,
+                    taskStats = tasks
                 )
-            }
-            orgResult is Result.Error -> Result.Error(orgResult.exception, orgResult.message ?: "Failed to load organization details")
-            countResult is Result.Error -> Result.Error(countResult.exception, countResult.message ?: "Failed to load employee count")
-            adminResult is Result.Error -> Result.Error(adminResult.exception, adminResult.message ?: "Failed to load admin count")
-            else -> Result.Loading
+            )
+        } else if (orgResult is Result.Error) {
+            Result.Error(orgResult.exception, orgResult.message ?: "Failed to load organization")
+        } else {
+            Result.Loading
         }
     }
 }

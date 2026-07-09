@@ -9,6 +9,7 @@ interface DashboardRepository {
     fun getOrganizationDetails(): Flow<Result<Organization>>
     fun getEmployeeCount(): Flow<Result<Int>>
     fun getAdminCount(): Flow<Result<Int>>
+    fun getTaskStats(): Flow<Result<Map<String, Int>>>
     fun getCurrentUser(): Flow<User?>
     suspend fun signOut(): Result<Unit>
 }

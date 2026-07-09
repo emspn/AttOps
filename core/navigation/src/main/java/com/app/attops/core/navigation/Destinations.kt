@@ -37,6 +37,12 @@ sealed interface Destination {
     data object Tasks : Destination
 
     @Serializable
+    data object CreateTask : Destination
+
+    @Serializable
+    data class TaskDetails(val taskId: String) : Destination
+
+    @Serializable
     data object Employees : Destination
 
     @Serializable

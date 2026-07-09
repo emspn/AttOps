@@ -10,8 +10,10 @@ import com.app.attops.features.dashboard.usecase.GetDashboardDataUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val getDashboardDataUseCase: GetDashboardDataUseCase,
-    private val repository: DashboardRepository
+    private val repository: DashboardRepository,
+    private val attendanceDao: com.app.attops.core.common.database.AttendanceDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState(isLoading = true))
@@ -27,6 +30,9 @@ class DashboardViewModel @Inject constructor(
 
     private val _uiEvent = MutableSharedFlow<DashboardUiEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
+
+    val pendingSyncCount = attendanceDao.getPendingCountFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     init {
         loadDashboardData()

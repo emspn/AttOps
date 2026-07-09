@@ -112,6 +112,31 @@ class DashboardRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getTaskStats(): Flow<Result<Map<String, Int>>> = flow {
+        val userId = auth.currentUserOrNull()?.id ?: return@flow
+        try {
+            val profile = getFullProfile(userId)
+            val orgId = profile?.organizationId
+            if (!orgId.isNullOrEmpty()) {
+                val response = postgrest.from("tasks")
+                    .select(columns = Columns.list("status")) {
+                        filter { eq("organization_id", orgId) }
+                    }
+                val tasks = response.decodeList<Map<String, String>>()
+                val stats = mapOf(
+                    "TOTAL" to tasks.size,
+                    "PENDING" to tasks.count { it["status"] == "PENDING" },
+                    "IN_PROGRESS" to tasks.count { it["status"] == "IN_PROGRESS" },
+                    "COMPLETED" to tasks.count { it["status"] == "COMPLETED" }
+                )
+                emit(Result.Success(stats))
+            }
+        } catch (e: Exception) {
+            Log.e("DashboardRepo", "Task stats failed", e)
+            emit(Result.Success(emptyMap()))
+        }
+    }
+
     override suspend fun signOut(): Result<Unit> {
         return try {
             auth.signOut()
