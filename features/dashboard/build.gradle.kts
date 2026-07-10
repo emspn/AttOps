@@ -55,6 +55,9 @@ dependencies {
     kapt(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
+    // Image Loading
+    implementation(libs.coil.compose)
+
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 }

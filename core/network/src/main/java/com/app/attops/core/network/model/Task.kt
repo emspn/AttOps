@@ -17,6 +17,7 @@ data class Task(
     @SerialName("location_name") val locationName: String? = null,
     @SerialName("latitude") val latitude: Double? = null,
     @SerialName("longitude") val longitude: Double? = null,
+    @SerialName("site_id") val siteId: String? = null,
     @SerialName("due_date") val dueDate: String? = null,
     @SerialName("completed_at") val completedAt: String? = null,
     @SerialName("created_at") val createdAt: String? = null,

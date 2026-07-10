@@ -192,7 +192,7 @@ fun CameraScreen(
             }
 
             // Capture Button
-            val canCapture = isFaceDetected || lensFacing == CameraSelector.LENS_FACING_BACK
+            val canCapture = isFaceDetected
             
             Surface(
                 onClick = {

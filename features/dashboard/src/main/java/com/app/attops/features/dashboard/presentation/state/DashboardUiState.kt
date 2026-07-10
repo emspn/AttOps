@@ -13,4 +13,5 @@ sealed interface DashboardUiEvent {
     data object NavigateToEmployees : DashboardUiEvent
     data object NavigateToTasks : DashboardUiEvent
     data object NavigateToProfile : DashboardUiEvent
+    data object NavigateToAuth : DashboardUiEvent
 }

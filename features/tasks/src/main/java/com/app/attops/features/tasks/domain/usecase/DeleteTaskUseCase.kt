@@ -1,12 +1,11 @@
 package com.app.attops.features.tasks.domain.usecase
 
+import com.app.attops.core.common.result.Result
 import com.app.attops.features.tasks.domain.repository.TaskRepository
 import javax.inject.Inject
 
-class GetTasksUseCase @Inject constructor(
+class DeleteTaskUseCase @Inject constructor(
     private val repository: TaskRepository
 ) {
-    operator fun invoke() = repository.getTasks()
-
-    fun getPendingSyncCount() = repository.getPendingSyncCount()
+    suspend operator fun invoke(taskId: String): Result<Unit> = repository.deleteTask(taskId)
 }

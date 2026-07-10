@@ -14,6 +14,8 @@ data class AttendanceEntity(
     val type: String,
     val latitude: Double,
     val longitude: Double,
+    val distance: Double = 0.0, // Deprecated, but keep for now
+    val integrityDistance: Double? = null,
     val timestamp: String,
     val localImagePath: String,
     val status: String = "PENDING"

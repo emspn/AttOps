@@ -1,7 +1,13 @@
 package com.app.attops.features.tasks.presentation.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -9,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.app.attops.core.network.model.Task
 import com.app.attops.core.network.model.TaskPriority
 import com.app.attops.core.network.model.TaskStatus
@@ -22,34 +29,47 @@ fun TaskCard(
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = task.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (!task.locationName.isNullOrEmpty()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = task.locationName!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
                 PriorityBadge(priority = task.priority)
             }
             
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            if (!task.locationName.isNullOrEmpty()) {
-                Text(
-                    text = "📍 ${task.locationName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -57,12 +77,23 @@ fun TaskCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 StatusBadge(status = task.status)
+                
                 if (!task.dueDate.isNullOrEmpty()) {
-                    Text(
-                        text = "Due: ${task.dueDate?.split("T")?.firstOrNull()}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = task.dueDate?.split("T")?.firstOrNull() ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
@@ -77,7 +108,7 @@ fun PriorityBadge(priority: TaskPriority) {
         TaskPriority.LOW -> Color(0xFF10B981)
     }
     Surface(
-        color = color.copy(alpha = 0.1f),
+        color = color.copy(alpha = 0.15f),
         shape = RoundedCornerShape(8.dp)
     ) {
         Text(
@@ -85,7 +116,8 @@ fun PriorityBadge(priority: TaskPriority) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = color,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            fontSize = 10.sp
         )
     }
 }
@@ -93,21 +125,37 @@ fun PriorityBadge(priority: TaskPriority) {
 @Composable
 fun StatusBadge(status: TaskStatus) {
     val color = when (status) {
-        TaskStatus.PENDING -> Color.Gray
+        TaskStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
         TaskStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
         TaskStatus.COMPLETED -> Color(0xFF10B981)
-        TaskStatus.CANCELLED -> Color.Red
+        TaskStatus.CANCELLED -> Color(0xFFEF4444)
     }
+    
+    val containerColor = color.copy(alpha = 0.1f)
+    
     Surface(
-        color = color.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(8.dp)
+        color = containerColor,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.2f))
     ) {
-        Text(
-            text = status.name.replace("_", " "),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .padding(1.dp)
+                    .background(color, CircleShape)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = status.name.replace("_", " "),
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+            )
+        }
     }
 }

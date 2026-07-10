@@ -17,7 +17,7 @@ data class TaskAttendance(
     @SerialName("check_out_time") val checkOutTime: String? = null,
     @SerialName("check_out_lat") val checkOutLat: Double? = null,
     @SerialName("check_out_lng") val checkOutLng: Double? = null,
-    @SerialName("distance_from_task_location") val distanceFromTaskLocation: Double? = null,
+    @SerialName("integrity_distance") val integrityDistance: Double? = null,
     @SerialName("check_in_image_url") val checkInImageUrl: String? = null,
     @SerialName("check_out_image_url") val checkOutImageUrl: String? = null,
     @SerialName("status") val status: String

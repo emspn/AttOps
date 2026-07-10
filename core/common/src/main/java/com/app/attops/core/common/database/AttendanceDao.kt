@@ -14,6 +14,9 @@ interface AttendanceDao {
     @Query("SELECT clientSideId FROM attendance_queue WHERE taskId = :taskId AND type = 'CHECK_IN' ORDER BY localId DESC LIMIT 1")
     suspend fun getLatestCheckInId(taskId: String): String?
 
+    @Query("SELECT * FROM attendance_queue WHERE taskId = :taskId AND type = 'CHECK_IN' ORDER BY localId DESC LIMIT 1")
+    suspend fun getLatestCheckInRecord(taskId: String): AttendanceEntity?
+
     @Update
     suspend fun updateAttendance(attendance: AttendanceEntity)
 

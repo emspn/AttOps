@@ -4,10 +4,13 @@ import android.Manifest
 import android.location.Geocoder
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,9 +20,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewModelScope
 import com.app.attops.core.designsystem.components.AttOpsPrimaryButton
@@ -55,13 +61,11 @@ fun CreateTaskScreen(
     var latitude by remember { mutableStateOf<Double?>(null) }
     var longitude by remember { mutableStateOf<Double?>(null) }
     var priority by remember { mutableStateOf(TaskPriority.MEDIUM) }
-    var priorityExpanded by remember { mutableStateOf(value = false) }
 
     var assignedEmployeeId by remember { mutableStateOf<String?>(null) }
     var assignedEmployeeName by remember { mutableStateOf("Unassigned") }
     var employeeExpanded by remember { mutableStateOf(false) }
 
-    // Deadline State
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -70,7 +74,6 @@ fun CreateTaskScreen(
     val datePickerState = rememberDatePickerState()
     val timePickerState = rememberTimePickerState()
 
-    // Search Feature
     var searchQuery by remember { mutableStateOf("") }
     var isSearching by remember { mutableStateOf(false) }
     var searchResults by remember { mutableStateOf<List<android.location.Address>>(emptyList()) }
@@ -95,7 +98,7 @@ fun CreateTaskScreen(
             }
         } else {
             scope.launch {
-                snackbarHostState.showSnackbar("Location permission is required to fetch your coordinates.")
+                snackbarHostState.showSnackbar("Location permission required.")
             }
         }
     }
@@ -110,15 +113,9 @@ fun CreateTaskScreen(
                 if (!results.isNullOrEmpty()) {
                     searchResults = results
                     showSearchResults = true
-                } else {
-                    viewModel.viewModelScope.launch {
-                        snackbarHostState.showSnackbar("No locations found.")
-                    }
                 }
             } catch (e: Exception) {
-                viewModel.viewModelScope.launch {
-                    snackbarHostState.showSnackbar("Search error: ${e.message}")
-                }
+                // handle error
             } finally {
                 isSearching = false
             }
@@ -136,15 +133,17 @@ fun CreateTaskScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Create Task") },
+                title = { Text("New Task", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
@@ -152,230 +151,203 @@ fun CreateTaskScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            Spacer(Modifier.height(4.dp))
+            
             AttOpsTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = "Task Title (e.g. Repair AC)"
+                label = "Title",
+                placeholder = "Task name"
             )
 
             AttOpsTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = "Work Description",
-                singleLine = false
+                label = "Description",
+                singleLine = false,
+                placeholder = "Instructions..."
             )
 
-            // Employee Assignment
-            ExposedDropdownMenuBox(
-                expanded = employeeExpanded,
-                onExpandedChange = { employeeExpanded = !employeeExpanded }
-            ) {
-                OutlinedTextField(
-                    value = assignedEmployeeName,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Assign To") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = employeeExpanded) },
-                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                ExposedDropdownMenu(
+            // Assignment
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Assign To", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                ExposedDropdownMenuBox(
                     expanded = employeeExpanded,
-                    onDismissRequest = { employeeExpanded = false }
+                    onExpandedChange = { employeeExpanded = !employeeExpanded }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Unassigned") },
-                        onClick = {
-                            assignedEmployeeId = null
-                            assignedEmployeeName = "Unassigned"
-                            employeeExpanded = false
-                        }
+                    OutlinedTextField(
+                        value = assignedEmployeeName,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = employeeExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary
+                        )
                     )
-                    uiState.employees.forEach { emp ->
+                    ExposedDropdownMenu(
+                        expanded = employeeExpanded,
+                        onDismissRequest = { employeeExpanded = false }
+                    ) {
                         DropdownMenuItem(
-                            text = { Text("${emp.name} (${emp.employeeId})") },
+                            text = { Text("Unassigned") },
                             onClick = {
-                                assignedEmployeeId = emp.id
-                                assignedEmployeeName = emp.name
+                                assignedEmployeeId = null
+                                assignedEmployeeName = "Unassigned"
                                 employeeExpanded = false
                             }
                         )
+                        uiState.employees.forEach { emp ->
+                            DropdownMenuItem(
+                                text = { Text("${emp.name} (${emp.employeeId})") },
+                                onClick = {
+                                    assignedEmployeeId = emp.id
+                                    assignedEmployeeName = emp.name
+                                    employeeExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
 
-            HorizontalDivider()
-
-            Text(text = "Deadline Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedCard(
-                    onClick = { showDatePicker = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Date", style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            text = selectedDate?.toString() ?: "Pick Date",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+            // Deadline
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Deadline", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 1.dp
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Date", style = MaterialTheme.typography.labelSmall)
+                            Text(selectedDate?.toString() ?: "Set Date", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        }
                     }
-                }
-                
-                OutlinedCard(
-                    onClick = { showTimePicker = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Time", style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            text = selectedTime?.toString() ?: "Pick Time",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                    Surface(
+                        onClick = { showTimePicker = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 1.dp
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Time", style = MaterialTheme.typography.labelSmall)
+                            Text(selectedTime?.toString() ?: "Set Time", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
 
-            HorizontalDivider()
-
-            Text(text = "Work Location", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            
-            AttOpsTextField(
-                value = locationName,
-                onValueChange = { locationName = it },
-                label = "Site Name or Address"
-            )
-
-            if (latitude == null) {
-                OutlinedButton(
-                    onClick = { showSearchDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.AddLocation, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Attach GPS Location (Optional)")
-                }
-            } else {
-                InputChip(
-                    selected = true,
-                    onClick = { 
-                        latitude = null
-                        longitude = null
-                    },
-                    label = { Text("GPS Location Attached") },
-                    trailingIcon = { Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(18.dp)) },
-                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                    modifier = Modifier.fillMaxWidth()
+            // Location
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Location", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                AttOpsTextField(
+                    value = locationName,
+                    onValueChange = { locationName = it },
+                    label = "Site Location"
                 )
+                if (latitude == null) {
+                    OutlinedButton(
+                        onClick = { showSearchDialog = true },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.AddLocation, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Attach GPS (Optional)")
+                    }
+                } else {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Location Linked", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = { latitude = null; longitude = null }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Close, null, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
             }
-
-            HorizontalDivider()
 
             // Priority
-            ExposedDropdownMenuBox(
-                expanded = priorityExpanded,
-                onExpandedChange = { priorityExpanded = !priorityExpanded }
-            ) {
-                OutlinedTextField(
-                    value = priority.name,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Priority") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = priorityExpanded) },
-                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                ExposedDropdownMenu(
-                    expanded = priorityExpanded,
-                    onDismissRequest = { priorityExpanded = false }
-                ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Priority", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TaskPriority.entries.forEach { p ->
-                        DropdownMenuItem(
-                            text = { Text(p.name) },
-                            onClick = {
-                                priority = p
-                                priorityExpanded = false
-                            }
+                        FilterChip(
+                            selected = priority == p,
+                            onClick = { priority = p },
+                            label = { Text(p.name, fontSize = 11.sp) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
-            AttOpsPrimaryButton(
-                text = "Create & Assign Task",
+            Button(
                 onClick = {
                     val deadlineStr = if (selectedDate != null && selectedTime != null) {
-                        LocalDateTime.of(selectedDate, selectedTime)
-                            .atZone(ZoneId.systemDefault())
-                            .toOffsetDateTime()
-                            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                        LocalDateTime.of(selectedDate, selectedTime).atZone(ZoneId.systemDefault()).toOffsetDateTime().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
                     } else null
 
-                    viewModel.createTask(
-                        title = title,
-                        description = description.ifBlank { null },
-                        assignedTo = assignedEmployeeId,
-                        priority = priority,
-                        locationName = locationName,
-                        lat = latitude,
-                        lng = longitude,
-                        dueDate = deadlineStr
-                    )
+                    viewModel.createTask(title, description.ifBlank { null }, assignedEmployeeId, priority, locationName, latitude, longitude, deadlineStr)
                 },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = !uiState.isLoading && title.isNotBlank() && locationName.isNotBlank()
-            )
+            ) {
+                if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                else Text("Create & Assign Task", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+
+            Spacer(Modifier.height(40.dp))
         }
     }
 
-    // Date Picker Dialog
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        selectedDate = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
-                    }
-                    showDatePicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+            confirmButton = { TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let { selectedDate = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate() }
+                showDatePicker = false
+            }) { Text("OK") } },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = datePickerState) }
     }
 
-    // Time Picker Dialog
     if (showTimePicker) {
         Dialog(onDismissRequest = { showTimePicker = false }) {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text("Select Time", style = MaterialTheme.typography.titleLarge)
+            Card(shape = RoundedCornerShape(24.dp), modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Text("Select Deadline Time", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     TimePicker(state = timePickerState)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
                         TextButton(onClick = {
                             selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
                             showTimePicker = false
-                        }) { Text("OK") }
+                        }) { Text("Set Time") }
                     }
                 }
             }
@@ -384,32 +356,21 @@ fun CreateTaskScreen(
 
     if (showSearchDialog) {
         Dialog(onDismissRequest = { showSearchDialog = false }) {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Search Site Location", style = MaterialTheme.typography.titleLarge)
-                    
+            Card(modifier = Modifier.fillMaxWidth().padding(16.dp), shape = RoundedCornerShape(24.dp)) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("Pin Site Location", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        label = { Text("Enter address...") },
+                        placeholder = { Text("Search address...") },
                         modifier = Modifier.fillMaxWidth(),
                         trailingIcon = {
-                            if (isSearching) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                            } else {
-                                IconButton(onClick = { performSearch() }) {
-                                    Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
-                                }
-                            }
+                            if (isSearching) CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            else IconButton(onClick = { performSearch() }) { Icon(Icons.Default.Search, null) }
                         },
                         shape = RoundedCornerShape(12.dp)
                     )
-
                     if (showSearchResults) {
-                        Text("Search Results", style = MaterialTheme.typography.labelMedium)
                         LazyColumn(modifier = Modifier.heightIn(max = 200.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             items(searchResults) { address ->
                                 Surface(
@@ -417,15 +378,14 @@ fun CreateTaskScreen(
                                         latitude = address.latitude
                                         longitude = address.longitude
                                         locationName = address.getAddressLine(0) ?: locationName
-                                        showSearchResults = false
                                         showSearchDialog = false
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                 ) {
                                     Text(
-                                        text = address.getAddressLine(0) ?: "Unknown Location",
+                                        text = address.getAddressLine(0) ?: "",
                                         modifier = Modifier.padding(12.dp),
                                         style = MaterialTheme.typography.bodySmall
                                     )
@@ -433,21 +393,14 @@ fun CreateTaskScreen(
                             }
                         }
                     }
-
-                    TextButton(
-                        onClick = {
-                            locationPermissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                    Button(
+                        onClick = { locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.MyLocation, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Use My Current Location")
+                        Icon(Icons.Default.MyLocation, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Use My Location")
                     }
                 }
             }

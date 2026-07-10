@@ -18,6 +18,8 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.call.body
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
@@ -142,11 +144,11 @@ class AuthRepositoryImpl @Inject constructor(
             
             Log.d(tag, "Provisioning organization via Edge Function: $name")
             
-            val params = mapOf(
-                "name" to name.trim(),
-                "business_type" to businessType.trim(),
-                "address" to address.trim()
-            )
+            val params = buildJsonObject {
+                put("name", name.trim())
+                put("business_type", businessType.trim())
+                put("address", address.trim())
+            }
 
             val response = try {
                 functions.invoke("create-organization", params)

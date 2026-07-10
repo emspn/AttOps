@@ -14,12 +14,12 @@ interface TaskRepository {
     fun getEmployees(): Flow<Result<List<User>>>
     suspend fun createTask(task: Task): Result<Unit>
     suspend fun updateTaskStatus(taskId: String, status: TaskStatus): Result<Unit>
+    suspend fun deleteTask(taskId: String): Result<Unit>
     
     suspend fun checkIn(
         taskId: String, 
         latitude: Double, 
         longitude: Double, 
-        distance: Double,
         imagePath: String? = null
     ): Result<Unit>
     
@@ -34,6 +34,7 @@ interface TaskRepository {
     
     // Sync
     suspend fun syncRecord(record: com.app.attops.core.common.database.AttendanceEntity): Result<Unit>
+    fun getPendingSyncCount(): Flow<Int>
     
     // Site Registry
     fun getSites(): Flow<Result<List<OrganizationSite>>>

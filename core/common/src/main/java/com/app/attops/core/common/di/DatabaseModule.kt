@@ -22,7 +22,7 @@ object DatabaseModule {
             context,
             AttOpsDatabase::class.java,
             "attops_db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides

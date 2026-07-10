@@ -45,6 +45,7 @@ ALTER TABLE public.task_attendance ENABLE ROW LEVEL SECURITY;
 -- 6. RLS Policies for Tasks
 
 -- Owners and Admins can see all tasks in their organization
+DROP POLICY IF EXISTS "Owners and Admins can view all tasks" ON public.tasks;
 CREATE POLICY "Owners and Admins can view all tasks" ON public.tasks
     FOR SELECT
     USING (
@@ -52,6 +53,7 @@ CREATE POLICY "Owners and Admins can view all tasks" ON public.tasks
     );
 
 -- Employees can only see tasks assigned to them
+DROP POLICY IF EXISTS "Employees can view assigned tasks" ON public.tasks;
 CREATE POLICY "Employees can view assigned tasks" ON public.tasks
     FOR SELECT
     USING (
@@ -59,6 +61,7 @@ CREATE POLICY "Employees can view assigned tasks" ON public.tasks
     );
 
 -- Owners and Admins can create and update tasks in their organization
+DROP POLICY IF EXISTS "Owners and Admins can manage tasks" ON public.tasks;
 CREATE POLICY "Owners and Admins can manage tasks" ON public.tasks
     FOR ALL
     USING (
@@ -66,9 +69,7 @@ CREATE POLICY "Owners and Admins can manage tasks" ON public.tasks
     );
 
 -- Employees can update the status of their assigned tasks (e.g., mark as in progress via check-in)
--- Note: This is usually handled via Edge Functions or strict RLS.
--- For simplicity in Phase 4 foundation, we allow UPDATE on specific columns via RLS if possible,
--- but Postgres RLS is row-level. We'll rely on app logic + RLS on the row.
+DROP POLICY IF EXISTS "Employees can update assigned task status" ON public.tasks;
 CREATE POLICY "Employees can update assigned task status" ON public.tasks
     FOR UPDATE
     USING (assigned_to = auth.uid())
@@ -77,6 +78,7 @@ CREATE POLICY "Employees can update assigned task status" ON public.tasks
 -- 7. RLS Policies for Task Attendance
 
 -- Owners and Admins can see all attendance records in their organization
+DROP POLICY IF EXISTS "Owners and Admins can view all attendance" ON public.task_attendance;
 CREATE POLICY "Owners and Admins can view all attendance" ON public.task_attendance
     FOR SELECT
     USING (
@@ -84,6 +86,7 @@ CREATE POLICY "Owners and Admins can view all attendance" ON public.task_attenda
     );
 
 -- Employees can see their own attendance records
+DROP POLICY IF EXISTS "Employees can view own attendance" ON public.task_attendance;
 CREATE POLICY "Employees can view own attendance" ON public.task_attendance
     FOR SELECT
     USING (
@@ -91,6 +94,7 @@ CREATE POLICY "Employees can view own attendance" ON public.task_attendance
     );
 
 -- Employees can create their own attendance records (Check-In)
+DROP POLICY IF EXISTS "Employees can check-in" ON public.task_attendance;
 CREATE POLICY "Employees can check-in" ON public.task_attendance
     FOR INSERT
     WITH CHECK (
@@ -98,6 +102,7 @@ CREATE POLICY "Employees can check-in" ON public.task_attendance
     );
 
 -- Employees can update their own attendance records (Check-Out)
+DROP POLICY IF EXISTS "Employees can check-out" ON public.task_attendance;
 CREATE POLICY "Employees can check-out" ON public.task_attendance
     FOR UPDATE
     USING (
@@ -113,5 +118,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_tasks_updated_at ON public.tasks;
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON public.tasks
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

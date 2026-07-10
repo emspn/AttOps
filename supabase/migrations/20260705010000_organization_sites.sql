@@ -14,12 +14,14 @@ CREATE TABLE IF NOT EXISTS public.organization_sites (
 ALTER TABLE public.organization_sites ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for Sites
+DROP POLICY IF EXISTS "Users can view their organization sites" ON public.organization_sites;
 CREATE POLICY "Users can view their organization sites" ON public.organization_sites
     FOR SELECT
     USING (
         organization_id = (SELECT org_id FROM public.get_auth_user_role_and_org())
     );
 
+DROP POLICY IF EXISTS "Owners and Admins can manage organization sites" ON public.organization_sites;
 CREATE POLICY "Owners and Admins can manage organization sites" ON public.organization_sites
     FOR ALL
     USING (

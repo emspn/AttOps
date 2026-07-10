@@ -21,3 +21,17 @@ local.properties
 
 # VS Code
 .vscode/
+
+# Kotlin
+.kotlin/
+
+# Node
+node_modules/
+
+# Supabase local temp
+supabase/.temp/
+
+# Environment / secrets
+.env
+*.keystore
+*.jks

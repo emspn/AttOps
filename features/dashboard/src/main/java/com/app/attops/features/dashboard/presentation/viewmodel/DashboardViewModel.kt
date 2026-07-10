@@ -3,6 +3,7 @@ package com.app.attops.features.dashboard.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.attops.core.common.result.Result
+import com.app.attops.core.common.util.RefreshBus
 import com.app.attops.features.dashboard.presentation.state.DashboardUiEvent
 import com.app.attops.features.dashboard.presentation.state.DashboardUiState
 import com.app.attops.features.dashboard.repository.DashboardRepository
@@ -22,7 +23,8 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val getDashboardDataUseCase: GetDashboardDataUseCase,
     private val repository: DashboardRepository,
-    private val attendanceDao: com.app.attops.core.common.database.AttendanceDao
+    private val attendanceDao: com.app.attops.core.common.database.AttendanceDao,
+    private val refreshBus: RefreshBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState(isLoading = true))
@@ -35,11 +37,10 @@ class DashboardViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     init {
-        loadDashboardData()
+        observeDashboardData()
     }
 
-    fun loadDashboardData() {
-        _uiState.update { it.copy(isLoading = true, error = null) }
+    private fun observeDashboardData() {
         viewModelScope.launch {
             getDashboardDataUseCase().collect { result ->
                 when (result) {
@@ -55,10 +56,14 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun loadDashboardData() {
+        refreshBus.trigger()
+    }
+
     fun logout() {
         viewModelScope.launch {
             repository.signOut()
-            // The actual navigation is handled by the callback in NavGraph
+            _uiEvent.emit(DashboardUiEvent.NavigateToAuth)
         }
     }
 

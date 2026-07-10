@@ -2,6 +2,7 @@ package com.app.attops.features.employee.repository
 
 import android.util.Log
 import com.app.attops.core.common.result.Result
+import com.app.attops.core.common.util.RefreshBus
 import com.app.attops.core.network.model.CreateEmployeeRequest
 import com.app.attops.core.network.model.EdgeFunctionResponse
 import com.app.attops.core.network.model.User
@@ -14,13 +15,18 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.call.body
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class EmployeeRepositoryImpl @Inject constructor(
     private val postgrest: Postgrest,
     private val auth: Auth,
-    private val supabaseFunctions: Functions
+    private val supabaseFunctions: Functions,
+    private val refreshBus: RefreshBus
 ) : EmployeeRepository {
 
     private suspend fun getFullProfile(userId: String): User? {
@@ -36,69 +42,75 @@ class EmployeeRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getCurrentUser(): Flow<User?> = flow {
-        val sessionStatus = auth.sessionStatus.value
-        if (sessionStatus is SessionStatus.Authenticated) {
-            val userId = sessionStatus.session.user?.id ?: ""
-            val user = getFullProfile(userId)
-            emit(user)
-        } else {
-            emit(null)
-        }
-    }
-
-    override fun getEmployees(): Flow<List<User>> = flow {
-        val userId = auth.currentUserOrNull()?.id ?: ""
-        if (userId.isEmpty()) {
-            emit(emptyList())
-            return@flow
-        }
-
-        val profile = getFullProfile(userId)
-        val orgId = profile?.organizationId
-        
-        if (!orgId.isNullOrEmpty()) {
-            val role = profile.role
-            
-            val employees = postgrest.from("users")
-                .select(columns = Columns.ALL) {
-                    filter { 
-                        eq("organization_id", orgId)
-                        neq("id", userId) // Don't show self
-                    }
-                }
-                .decodeList<User>()
-
-            // Filter by role locally to avoid PostgREST Enum mapping issues
-            val filteredEmployees = if (role == UserRole.ADMIN) {
-                employees.filter { it.role == UserRole.EMPLOYEE }
+    override fun getCurrentUser(): Flow<User?> = refreshBus.refreshEvent.flatMapLatest {
+        flow {
+            val sessionStatus = auth.sessionStatus.value
+            if (sessionStatus is SessionStatus.Authenticated) {
+                val userId = sessionStatus.session.user?.id ?: ""
+                val user = getFullProfile(userId)
+                emit(user)
             } else {
-                employees // Owner sees everyone
+                emit(null)
             }
-            
-            emit(filteredEmployees)
-        } else {
-            emit(emptyList())
         }
     }
 
-    override fun getEmployee(id: String): Flow<User?> = flow {
-        val userId = auth.currentUserOrNull()?.id ?: ""
-        val profile = if (userId.isNotEmpty()) getFullProfile(userId) else null
-        val orgId = profile?.organizationId
-        
-        if (!orgId.isNullOrEmpty()) {
-            val employee = postgrest.from("users")
-                .select(columns = Columns.ALL) {
-                    filter {
-                        eq("organization_id", orgId)
-                        eq("id", id)
+    override fun getEmployees(): Flow<List<User>> = refreshBus.refreshEvent.flatMapLatest {
+        flow {
+            val userId = auth.currentUserOrNull()?.id ?: ""
+            if (userId.isEmpty()) {
+                emit(emptyList())
+                return@flow
+            }
+
+            val profile = getFullProfile(userId)
+            val orgId = profile?.organizationId
+            
+            if (!orgId.isNullOrEmpty()) {
+                val role = profile.role
+                
+                val employees = postgrest.from("users")
+                    .select(columns = Columns.ALL) {
+                        filter { 
+                            eq("organization_id", orgId)
+                            neq("id", userId) // Don't show self
+                        }
                     }
+                    .decodeList<User>()
+
+                // Filter by role locally to avoid PostgREST Enum mapping issues
+                val filteredEmployees = if (role == UserRole.ADMIN) {
+                    employees.filter { it.role == UserRole.EMPLOYEE }
+                } else {
+                    employees // Owner sees everyone
                 }
-                .decodeSingleOrNull<User>()
-            emit(employee)
-        } else {
-            emit(null)
+                
+                emit(filteredEmployees)
+            } else {
+                emit(emptyList())
+            }
+        }
+    }
+
+    override fun getEmployee(id: String): Flow<User?> = refreshBus.refreshEvent.flatMapLatest {
+        flow {
+            val userId = auth.currentUserOrNull()?.id ?: ""
+            val profile = if (userId.isNotEmpty()) getFullProfile(userId) else null
+            val orgId = profile?.organizationId
+            
+            if (!orgId.isNullOrEmpty()) {
+                val employee = postgrest.from("users")
+                    .select(columns = Columns.ALL) {
+                        filter {
+                            eq("organization_id", orgId)
+                            eq("id", id)
+                        }
+                    }
+                    .decodeSingleOrNull<User>()
+                emit(employee)
+            } else {
+                emit(null)
+            }
         }
     }
 
@@ -133,6 +145,7 @@ class EmployeeRepositoryImpl @Inject constructor(
 
             if (result.success) {
                 Log.d("EmployeeRepo", "Provisioning SUCCESS for userId: ${result.userId}")
+                refreshBus.trigger()
                 Result.Success(Unit)
             } else {
                 val errorMsg = result.message ?: "Failed to add employee. Please try again."
@@ -161,6 +174,7 @@ class EmployeeRepositoryImpl @Inject constructor(
                     eq("organization_id", orgId)
                 }
             }
+            refreshBus.trigger()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -173,12 +187,13 @@ class EmployeeRepositoryImpl @Inject constructor(
             val profile = getFullProfile(userId)
             val orgId = profile?.organizationId ?: return Result.Error(message = "Unauthorized")
 
-            postgrest.from("users").update(mapOf("status" to UserStatus.INACTIVE.name)) {
+            postgrest.from("users").update(buildJsonObject { put("status", UserStatus.INACTIVE.name) }) {
                 filter {
                     eq("id", id)
                     eq("organization_id", orgId)
                 }
             }
+            refreshBus.trigger()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)

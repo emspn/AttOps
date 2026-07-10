@@ -5,8 +5,12 @@ ALTER TABLE public.attendance_logs
 ADD COLUMN IF NOT EXISTS client_side_id UUID UNIQUE;
 
 -- Add separate columns for check-in and check-out photos to prevent overwriting
-ALTER TABLE public.attendance_logs
-RENAME COLUMN image_url TO check_in_image_url;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attendance_logs' AND column_name='image_url') THEN
+    ALTER TABLE public.attendance_logs RENAME COLUMN image_url TO check_in_image_url;
+  END IF;
+END $$;
 
 ALTER TABLE public.attendance_logs
 ADD COLUMN IF NOT EXISTS check_out_image_url TEXT;
