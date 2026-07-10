@@ -1,0 +1,11 @@
+package com.app.attops.features.tasks.domain.usecase
+
+import com.app.attops.core.network.model.Task
+import com.app.attops.features.tasks.domain.repository.TaskRepository
+import javax.inject.Inject
+
+class CreateTaskUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(task: Task) = repository.createTask(task)
+}
