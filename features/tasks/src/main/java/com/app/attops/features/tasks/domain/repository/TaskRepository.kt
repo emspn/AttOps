@@ -31,9 +31,10 @@ interface TaskRepository {
     ): Result<Unit>
     
     fun getTaskAttendance(taskId: String): Flow<Result<TaskAttendance?>>
+    fun loadTasks()
     
     // Sync
-    suspend fun syncRecord(record: com.app.attops.core.common.database.AttendanceEntity): Result<Unit>
+    suspend fun syncRecord(record: com.app.attops.core.common.database.AttendanceEntity, shouldTriggerRefresh: Boolean = true): Result<Unit>
     fun getPendingSyncCount(): Flow<Int>
     
     // Site Registry

@@ -7,6 +7,7 @@ import com.app.attops.core.network.model.Organization
 import com.app.attops.core.network.model.User
 import com.app.attops.core.network.model.UserRole
 import com.app.attops.core.network.model.UserStatus
+import com.app.attops.core.common.util.SessionBus
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.providers.Google
@@ -25,7 +26,8 @@ import javax.inject.Inject
 class AuthRepositoryImpl @Inject constructor(
     private val supabaseAuth: Auth,
     private val postgrest: Postgrest,
-    private val functions: Functions
+    private val functions: Functions,
+    private val sessionBus: SessionBus
 ) : AuthRepository {
 
     private val tag = "AUTH_REPO"
@@ -94,9 +96,9 @@ class AuthRepositoryImpl @Inject constructor(
         return User(
             id = authUser.id,
             organizationId = "",
-            name = authUser.userMetadata?.get("full_name")?.toString() ?: "Owner",
+            name = authUser.userMetadata?.get("full_name")?.toString() ?: "User",
             email = authUser.email,
-            role = UserRole.OWNER,
+            role = UserRole.EMPLOYEE, // Security Fix: Default to EMPLOYEE, not OWNER
             status = UserStatus.ACTIVE
         )
     }
@@ -190,6 +192,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signOut(): Result<Unit> {
         return try {
             supabaseAuth.signOut()
+            sessionBus.triggerSignOut()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)

@@ -20,6 +20,8 @@ data class Task(
     @SerialName("site_id") val siteId: String? = null,
     @SerialName("due_date") val dueDate: String? = null,
     @SerialName("completed_at") val completedAt: String? = null,
+    @SerialName("approved_at") val approvedAt: String? = null,
+    @SerialName("approved_by") val approvedBy: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null
 )

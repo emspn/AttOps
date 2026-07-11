@@ -15,6 +15,7 @@ data class User(
     @SerialName("designation") val designation: String? = null,
     @SerialName("role") val role: UserRole,
     @SerialName("status") val status: UserStatus = UserStatus.ACTIVE,
+    @SerialName("login_password") val loginPassword: String? = null,
     @SerialName("profile_photo") val profilePhoto: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )

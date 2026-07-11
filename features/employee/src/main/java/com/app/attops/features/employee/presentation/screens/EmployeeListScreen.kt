@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.attops.core.network.model.UserRole
 import com.app.attops.features.employee.presentation.components.EmployeeCard
 import com.app.attops.features.employee.presentation.state.EmployeeSortOrder
@@ -33,12 +34,13 @@ fun EmployeeListScreen(
     onEmployeeClick: (String) -> Unit,
     onAddEmployeeClick: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentUserRole = uiState.currentUserRole
     var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             CenterAlignedTopAppBar(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -95,7 +97,7 @@ fun EmployeeListScreen(
         },
         floatingActionButton = {
             if (currentUserRole == UserRole.OWNER || currentUserRole == UserRole.ADMIN) {
-                Box(modifier = Modifier.padding(bottom = 80.dp)) {
+                Box(modifier = Modifier.navigationBarsPadding().padding(bottom = 86.dp)) {
                     FloatingActionButton(
                         onClick = onAddEmployeeClick,
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -163,7 +165,7 @@ fun EmployeeListScreen(
                                         onClick = { onEmployeeClick(employee.id) }
                                     )
                                 }
-                                item { Spacer(modifier = Modifier.height(100.dp)) }
+                                item { Spacer(modifier = Modifier.height(150.dp)) }
                             }
                         }
                     }

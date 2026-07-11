@@ -26,6 +26,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.attops.core.network.model.UserRole
 import com.app.attops.features.dashboard.presentation.components.LogoutDialog
 import com.app.attops.features.dashboard.presentation.viewmodel.DashboardViewModel
@@ -36,13 +37,13 @@ import com.app.attops.features.dashboard.usecase.DashboardData
 fun DashboardScreen(
     viewModel: DashboardViewModel
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val pendingSyncCount by viewModel.pendingSyncCount.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val pendingSyncCount by viewModel.pendingSyncCount.collectAsStateWithLifecycle()
     val data = uiState.data
-    val clipboardManager = LocalClipboardManager.current
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -53,33 +54,52 @@ fun DashboardScreen(
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
-            when {
-                uiState.isLoading -> LoadingShimmer()
-                uiState.error != null -> ErrorState(uiState.error!!) { viewModel.loadDashboardData() }
-                data != null -> {
-                    AnimatedContent(targetState = data, label = "DashboardContent") { targetData ->
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Spacer(Modifier.height(4.dp))
-                            HeaderSection(targetData.user.name, targetData.organization.name)
-
-                            if (targetData.user.role != UserRole.EMPLOYEE) {
-                                OrgCodeCard(targetData.organization.orgCode) {
-                                    clipboardManager.setText(AnnotatedString(targetData.organization.orgCode))
-                                }
-                            }
-
-                            StatsSection(targetData, viewModel)
-                            QuickActionsSection(targetData, viewModel)
-                            Spacer(modifier = Modifier.height(100.dp))
-                        }
-                    }
-                }
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // Priority 1: If we have data, show it immediately (Instant UI)
+            if (data != null) {
+                DashboardContent(data, viewModel)
+            } 
+            // Priority 2: If we are truly loading the very first time
+            else if (uiState.isLoading) {
+                LoadingShimmer()
+            } 
+            // Priority 3: Show error only if we have NO data
+            else if (uiState.error != null) {
+                ErrorState(uiState.error!!) { viewModel.loadDashboardData() }
             }
         }
+    }
+}
+
+@Composable
+fun DashboardContent(data: DashboardData, viewModel: DashboardViewModel) {
+    val clipboardManager = LocalClipboardManager.current
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Spacer(Modifier.height(8.dp))
+        HeaderSection(data.user.name, data.organization.name)
+
+        if (data.user.role != UserRole.EMPLOYEE) {
+            OrgCodeCard(data.organization.orgCode) {
+                clipboardManager.setText(AnnotatedString(data.organization.orgCode))
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+        StatsSection(data, viewModel)
+        
+        Spacer(Modifier.height(8.dp))
+        QuickActionsSection(data, viewModel)
+        
+        // This spacer ensures the last card isn't hidden by the floating nav bar
+        // while maintaining a clean, professional look
+        Spacer(modifier = Modifier.height(150.dp))
     }
 }
 
@@ -121,15 +141,28 @@ fun OrgCodeCard(orgCode: String, onCopy: () -> Unit) {
 
 @Composable
 fun StatsSection(data: DashboardData, viewModel: DashboardViewModel) {
+    val role = data.user.role
+    
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("Pending", data.taskStats["PENDING"]?.toString() ?: "0", Icons.AutoMirrored.Filled.Assignment, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) { viewModel.onTasksClick() }
-            StatCard("Done", data.taskStats["COMPLETED"]?.toString() ?: "0", Icons.Default.CheckCircle, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) { viewModel.onTasksClick() }
-        }
-        if (data.user.role != UserRole.EMPLOYEE) {
+        if (role == UserRole.EMPLOYEE) {
+            // Employee specific grid (4 items: Pending, Active, Review, Verified)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatCard("Pending", data.taskStats["PENDING"]?.toString() ?: "0", Icons.AutoMirrored.Filled.Assignment, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) { viewModel.onTasksClick() }
+                StatCard("Active", data.taskStats["IN_PROGRESS"]?.toString() ?: "0", Icons.Default.PlayCircle, Color(0xFF3B82F6), Modifier.weight(1f)) { viewModel.onTasksClick() }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatCard("Review", data.taskStats["IN_REVIEW"]?.toString() ?: "0", Icons.Default.RateReview, MaterialTheme.colorScheme.error, Modifier.weight(1f)) { viewModel.onTasksClick() }
+                StatCard("Verified", data.taskStats["DONE"]?.toString() ?: "0", Icons.Default.CheckCircle, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) { viewModel.onTasksClick() }
+            }
+        } else {
+            // Admin/Owner Grid
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatCard("Pending", data.taskStats["PENDING"]?.toString() ?: "0", Icons.AutoMirrored.Filled.Assignment, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) { viewModel.onTasksClick() }
+                StatCard("Verified", data.taskStats["DONE"]?.toString() ?: "0", Icons.Default.CheckCircle, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) { viewModel.onTasksClick() }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatCard("For Review", data.taskStats["FOR_REVIEW"]?.toString() ?: "0", Icons.Default.RateReview, MaterialTheme.colorScheme.error, Modifier.weight(1f)) { viewModel.onTasksClick() }
                 StatCard("Staff", data.employeeCount.toString(), Icons.Default.Group, MaterialTheme.colorScheme.primary, Modifier.weight(1f)) { viewModel.onEmployeesClick() }
-                StatCard("Active", data.taskStats["IN_PROGRESS"]?.toString() ?: "0", Icons.Default.Bolt, MaterialTheme.colorScheme.error, Modifier.weight(1f)) { viewModel.onTasksClick() }
             }
         }
     }

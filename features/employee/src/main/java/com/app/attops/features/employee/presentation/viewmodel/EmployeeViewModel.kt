@@ -62,7 +62,6 @@ class EmployeeViewModel @Inject constructor(
     private fun observeEmployees() {
         viewModelScope.launch {
             getEmployeesUseCase()
-                .onStart { _uiState.update { it.copy(isLoading = true, error = null) } }
                 .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
                 .collect { employees ->
                     allEmployees = employees
@@ -78,7 +77,6 @@ class EmployeeViewModel @Inject constructor(
     fun loadEmployee(id: String) {
         viewModelScope.launch {
             getEmployeeUseCase(id)
-                .onStart { _uiState.update { it.copy(isLoading = true, error = null) } }
                 .catch { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
                 .collect { employee ->
                     _uiState.update { it.copy(isLoading = false, selectedEmployee = employee) }

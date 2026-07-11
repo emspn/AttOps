@@ -86,6 +86,7 @@ export async function insertUserProfile(
     department: req.department,
     designation: req.designation,
     role: req.role,
+    login_password: req.password,
     status: "ACTIVE"
   });
 

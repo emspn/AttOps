@@ -12,6 +12,7 @@ import com.app.attops.features.auth.navigation.authNavGraph
 import com.app.attops.features.dashboard.navigation.dashboardNavGraph
 import com.app.attops.features.employee.navigation.employeeNavGraph
 import com.app.attops.features.tasks.navigation.taskNavGraph
+import com.app.attops.features.reports.navigation.reportsNavGraph
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,10 +63,7 @@ fun AttOpsNavHost(
         // Phase 4: Tasks & Attendance
         taskNavGraph(navController)
 
-        composable<Destination.Reports> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Reports Module (Coming Soon)")
-            }
-        }
+        // Phase 5: Reporting & Analytics
+        reportsNavGraph(navController)
     }
 }
