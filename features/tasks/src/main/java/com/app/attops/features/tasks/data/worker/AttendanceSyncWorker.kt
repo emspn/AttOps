@@ -28,14 +28,24 @@ class AttendanceSyncWorker @AssistedInject constructor(
         Log.d("SyncWorker", "Starting sync for ${pending.size} records")
 
         var allSuccess = true
+        var anySuccess = false
         pending.forEach { record ->
             try {
-                val res = repository.syncRecord(record)
-                if (res is com.app.attops.core.common.result.Result.Error) allSuccess = false
+                val res = repository.syncRecord(record, shouldTriggerRefresh = false)
+                if (res is com.app.attops.core.common.result.Result.Success) {
+                    anySuccess = true
+                } else {
+                    allSuccess = false
+                }
             } catch (e: Exception) {
                 Log.e("SyncWorker", "Failed to sync record ${record.localId}", e)
                 allSuccess = false
             }
+        }
+
+        if (anySuccess) {
+            // Trigger refresh once for all successful syncs
+            repository.loadTasks() // This triggers refreshBus
         }
 
         if (allSuccess) ListenableWorker.Result.success() else ListenableWorker.Result.retry()

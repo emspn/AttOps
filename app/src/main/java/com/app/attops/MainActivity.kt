@@ -18,10 +18,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.app.attops.core.network.model.UserRole
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -86,32 +91,64 @@ fun MainScreen(navigationBus: NavigationBus) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val bottomNavItems = listOf(
-        BottomNavItem("Dashboard", Destination.Dashboard, Icons.Default.Dashboard),
-        BottomNavItem("Tasks", Destination.Tasks, Icons.AutoMirrored.Filled.Assignment),
-        BottomNavItem("Staff", Destination.Employees, Icons.Default.Group),
-        BottomNavItem("Reports", Destination.Reports, Icons.Default.Poll),
-        BottomNavItem("Profile", Destination.Profile, Icons.Default.Person)
-    )
+    // Deep Analysis: Use a clean Global ViewModel for Main Screen
+    val mainViewModel: com.app.attops.ui.viewmodel.MainViewModel = hiltViewModel()
+    val user by mainViewModel.currentUser.collectAsStateWithLifecycle()
+    val userRole = user?.role
 
-    val showBottomBar = bottomNavItems.any { item ->
+    // Logic Fix: Only show nav items if the user is fully logged in AND has an organization.
+    // This prevents the flickering between 3 and 5 items during the profile load.
+    val bottomNavItems = remember(user, userRole) {
+        val currentUser = user
+        if (currentUser == null || currentUser.organizationId.isEmpty()) {
+            // While loading or during onboarding, show NO bottom bar items.
+            emptyList<BottomNavItem>()
+        } else {
+            mutableListOf(
+                BottomNavItem("Dashboard", Destination.Dashboard, Icons.Default.Dashboard),
+                BottomNavItem("Tasks", Destination.Tasks, Icons.AutoMirrored.Filled.Assignment),
+            ).apply {
+                if (userRole == UserRole.OWNER || userRole == UserRole.ADMIN) {
+                    add(BottomNavItem("Staff", Destination.Employees, Icons.Default.Group))
+                    add(BottomNavItem("Reports", Destination.Reports, Icons.Default.Poll))
+                }
+                add(BottomNavItem("Profile", Destination.Profile, Icons.Default.Person))
+            }
+        }
+    }
+
+    // Only show bottom bar if we have items AND we are on a top-level destination.
+    val showBottomBar = bottomNavItems.isNotEmpty() && bottomNavItems.any { item ->
         currentDestination?.hierarchy?.any { it.hasRoute(item.route::class) } == true
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            if (showBottomBar) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        ) { innerPadding ->
+            AttOpsNavHost(
+                navController = navController,
+                navigationBus = navigationBus,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            )
+        }
+
+        if (showBottomBar) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 AttOpsBottomBar(navController, bottomNavItems)
             }
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { innerPadding ->
-        AttOpsNavHost(
-            navController = navController,
-            navigationBus = navigationBus,
-            modifier = Modifier.fillMaxSize()
-        )
+        }
     }
 }
 
@@ -128,8 +165,7 @@ fun AttOpsBottomBar(
         tonalElevation = 8.dp,
         shadowElevation = 12.dp,
         modifier = Modifier
-            .navigationBarsPadding() // FIX: Add padding for system buttons
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp)
             .clip(RoundedCornerShape(24.dp))
     ) {
         NavigationBar(

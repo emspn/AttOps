@@ -55,5 +55,8 @@ sealed interface Destination {
     data object Reports : Destination
 
     @Serializable
+    data class EmployeeTimesheet(val employeeId: String, val fullName: String) : Destination
+
+    @Serializable
     data object Profile : Destination
 }

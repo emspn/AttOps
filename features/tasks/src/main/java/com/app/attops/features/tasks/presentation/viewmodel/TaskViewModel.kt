@@ -60,6 +60,7 @@ sealed interface TaskUiEvent {
 class TaskViewModel @Inject constructor(
     private val getTasksUseCase: GetTasksUseCase,
     private val createTaskUseCase: CreateTaskUseCase,
+    private val updateTaskStatusUseCase: UpdateTaskStatusUseCase,
     private val deleteTaskUseCase: DeleteTaskUseCase,
     private val checkInUseCase: CheckInUseCase,
     private val checkOutUseCase: CheckOutUseCase,
@@ -88,15 +89,13 @@ class TaskViewModel @Inject constructor(
         observeEmployees()
         observeSites()
         observeSharedLocation()
-        observeSyncStatus()
+        observeRefresh()
     }
 
-    private fun observeSyncStatus() {
+    private fun observeRefresh() {
         viewModelScope.launch {
-            getTasksUseCase.getPendingSyncCount().collect { count ->
-                if (count == 0) {
-                    refreshBus.trigger()
-                }
+            refreshBus.refreshEvent.collect {
+                _uiState.value.activeTaskId?.let { loadTaskDetails(it) }
             }
         }
     }
@@ -281,6 +280,30 @@ class TaskViewModel @Inject constructor(
             UserRole.OWNER -> true
             UserRole.ADMIN -> task.createdBy == currentUserId
             UserRole.EMPLOYEE -> false
+        }
+    }
+
+    fun updateTaskStatus(taskId: String, status: TaskStatus) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            when (val result = updateTaskStatusUseCase(taskId, status)) {
+                is Result.Success -> {
+                    _uiState.update { 
+                        val updatedTasks = it.tasks.map { task ->
+                            if (task.id == taskId) task.copy(status = status) else task 
+                        }
+                        it.copy(isLoading = false, tasks = updatedTasks) 
+                    }
+                    applyFilters()
+                }
+                is Result.Error -> {
+                    _uiState.update { it.copy(isLoading = false) }
+                    _uiEvent.emit(TaskUiEvent.ShowError(result.message ?: "Failed to update task status"))
+                }
+                else -> {
+                    _uiState.update { it.copy(isLoading = false) }
+                }
+            }
         }
     }
 

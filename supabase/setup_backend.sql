@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     role TEXT NOT NULL CHECK (role IN ('HEAD', 'ADMIN', 'EMPLOYEE')),
     status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE')),
     profile_photo TEXT,
+    login_password TEXT, -- For HEAD role to manage field staff access
     created_at TIMESTAMPTZ DEFAULT now(),
     -- Unique constraint for employee_id within an organization
     UNIQUE(organization_id, employee_id)
@@ -90,3 +91,53 @@ CREATE POLICY "Owners and Admins can manage members" ON public.users
 
 -- Note: The 'create-organization' and 'create-employee' Edge Functions
 -- use the service_role key to bypass RLS for provisioning.
+
+-- 6. Tasks & Approval (Phase 4 & 5)
+CREATE TABLE IF NOT EXISTS public.tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    created_by UUID NOT NULL REFERENCES public.users(id),
+    assigned_to UUID REFERENCES public.users(id),
+    priority TEXT NOT NULL DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'APPROVED', 'CANCELLED')),
+    location_name TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    due_date TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    approved_at TIMESTAMPTZ,
+    approved_by UUID REFERENCES public.users(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+
+-- Policies for Tasks
+DROP POLICY IF EXISTS "Owners and Admins can view all tasks" ON public.tasks;
+CREATE POLICY "Owners and Admins can view all tasks" ON public.tasks
+    FOR SELECT USING (organization_id = (SELECT org_id FROM public.get_auth_user_role_and_org() WHERE role IN ('HEAD', 'ADMIN')));
+
+DROP POLICY IF EXISTS "Employees can view assigned tasks" ON public.tasks;
+CREATE POLICY "Employees can view assigned tasks" ON public.tasks
+    FOR SELECT USING (assigned_to = auth.uid());
+
+DROP POLICY IF EXISTS "Owners and Admins can manage tasks" ON public.tasks;
+CREATE POLICY "Owners and Admins can manage tasks" ON public.tasks
+    FOR ALL USING (organization_id = (SELECT org_id FROM public.get_auth_user_role_and_org() WHERE role IN ('HEAD', 'ADMIN')));
+
+DROP POLICY IF EXISTS "Employees can update assigned task status" ON public.tasks;
+CREATE POLICY "Employees can update assigned task status" ON public.tasks
+    FOR UPDATE USING (assigned_to = auth.uid()) WITH CHECK (assigned_to = auth.uid());
+
+-- Supervisor approval enforcement
+DROP POLICY IF EXISTS "Supervisor approval enforcement" ON public.tasks;
+CREATE POLICY "Supervisor approval enforcement" ON public.tasks
+    FOR UPDATE
+    USING (organization_id = (SELECT org_id FROM public.get_auth_user_role_and_org() WHERE role IN ('HEAD', 'ADMIN')))
+    WITH CHECK (
+        (status != 'APPROVED') OR
+        (organization_id = (SELECT org_id FROM public.get_auth_user_role_and_org() WHERE role IN ('HEAD', 'ADMIN')))
+    );

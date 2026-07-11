@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,14 +19,17 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -50,7 +54,7 @@ fun TaskDetailsScreen(
     viewModel: TaskViewModel,
     onBackClick: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val userRole = uiState.userRole
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,6 +115,7 @@ fun TaskDetailsScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -132,6 +137,44 @@ fun TaskDetailsScreen(
                     scrolledContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
+        },
+        bottomBar = {
+            if (task != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
+                    tonalElevation = 4.dp,
+                    shadowElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .padding(16.dp)
+                    ) {
+                        if (userRole == UserRole.OWNER || userRole == UserRole.ADMIN) {
+                            SupervisorActions(
+                                task = task,
+                                isLoading = uiState.isLoading,
+                                viewModel = viewModel
+                            )
+                        }
+
+                        if (userRole == UserRole.EMPLOYEE || userRole == UserRole.ADMIN) {
+                            if (userRole == UserRole.ADMIN && task.status == TaskStatus.COMPLETED) {
+                                // Admin doesn't need to see employee buttons if task is ready for approval
+                            } else {
+                                EmployeeActions(
+                                    task = task,
+                                    attendance = uiState.attendance,
+                                    isExpired = isExpired,
+                                    isLoading = uiState.isLoading || uiState.isPerformingAttendance,
+                                    permissionLauncher = permissionLauncher,
+                                    viewModel = viewModel
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     ) { padding ->
         if (task == null) {
@@ -196,34 +239,30 @@ fun TaskDetailsScreen(
                         }
 
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            ProofCard("Check In", att.checkInTime, att.checkInImageUrl, att.checkInLat, att.checkInLng, context)
-                            if (att.status == "CHECKED_OUT") {
-                                ProofCard("Check Out", att.checkOutTime, att.checkOutImageUrl, att.checkOutLat, att.checkOutLng, context)
+                            ProofCard(
+                                label = "Check In", 
+                                time = att.checkInTime, 
+                                imageUrl = att.checkInImageUrl, 
+                                lat = att.checkInLat, 
+                                lng = att.checkInLng, 
+                                context = context,
+                                isSyncing = att.checkInImageUrl.isNullOrEmpty() && (task.status == TaskStatus.IN_PROGRESS || task.status == TaskStatus.COMPLETED)
+                            )
+                            if (att.status == "CHECKED_OUT" || task.status == TaskStatus.COMPLETED || task.status == TaskStatus.APPROVED) {
+                                ProofCard(
+                                    label = "Check Out", 
+                                    time = att.checkOutTime, 
+                                    imageUrl = att.checkOutImageUrl, 
+                                    lat = att.checkOutLat, 
+                                    lng = att.checkOutLng, 
+                                    context = context,
+                                    isSyncing = att.checkOutImageUrl.isNullOrEmpty() && (task.status == TaskStatus.COMPLETED || task.status == TaskStatus.APPROVED)
+                                )
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(100.dp))
-                }
-            }
-
-            // Fixed Bottom Actions
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding()
-                    .padding(16.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                if (userRole == UserRole.EMPLOYEE || userRole == UserRole.ADMIN) {
-                    EmployeeActions(
-                        task = task, 
-                        attendance = uiState.attendance,
-                        isExpired = isExpired, 
-                        isLoading = uiState.isLoading || uiState.isPerformingAttendance,
-                        permissionLauncher = permissionLauncher, 
-                        viewModel = viewModel
-                    )
+                    Spacer(Modifier.height(24.dp))
                 }
             }
         }
@@ -286,11 +325,57 @@ fun HeaderSection(task: com.app.attops.core.network.model.Task, isExpired: Boole
                 Text(
                     text = "Deadline: $deadlineDisplay",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isExpired && task.status != TaskStatus.COMPLETED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isExpired && task.status != TaskStatus.COMPLETED && task.status != TaskStatus.APPROVED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
             }
         }
+    }
+}
+
+@Composable
+fun SupervisorActions(
+    task: com.app.attops.core.network.model.Task,
+    isLoading: Boolean,
+    viewModel: TaskViewModel
+) {
+    when (task.status) {
+        TaskStatus.COMPLETED -> {
+            Button(
+                onClick = { viewModel.updateTaskStatus(task.id!!, TaskStatus.APPROVED) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // Green
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.Verified, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Approve Task Completion", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        TaskStatus.APPROVED -> {
+            Surface(
+                color = Color(0xFF10B981).copy(alpha = 0.1f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Verified, null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("This task has been verified and approved.", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                }
+            }
+        }
+        else -> {}
     }
 }
 
@@ -307,7 +392,15 @@ fun InfoItem(title: String, icon: ImageVector, value: String) {
 }
 
 @Composable
-fun ProofCard(label: String, time: String?, imageUrl: String?, lat: Double?, lng: Double?, context: android.content.Context) {
+fun ProofCard(
+    label: String, 
+    time: String?, 
+    imageUrl: String?, 
+    lat: Double?, 
+    lng: Double?, 
+    context: android.content.Context,
+    isSyncing: Boolean = false
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -319,19 +412,20 @@ fun ProofCard(label: String, time: String?, imageUrl: String?, lat: Double?, lng
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                 Text(text = time?.split("T")?.lastOrNull()?.take(5) ?: "", style = MaterialTheme.typography.labelSmall)
             }
+            
+            Spacer(Modifier.height(10.dp))
+            
             if (!imageUrl.isNullOrEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp)) {
                     AsyncImage(
                         model = imageUrl,
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .wrapContentHeight()
                             .clickable {
                                 if (lat != null && lng != null) {
                                     val uri = "geo:$lat,$lng?q=$lat,$lng($label Spot)".toUri()
@@ -354,16 +448,16 @@ fun ProofCard(label: String, time: String?, imageUrl: String?, lat: Double?, lng
                                 .padding(12.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     Icons.Default.LocationOn,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(6.dp))
                                 Text(
                                     "Location Link",
                                     color = Color.White,
@@ -374,14 +468,54 @@ fun ProofCard(label: String, time: String?, imageUrl: String?, lat: Double?, lng
                         }
                     }
                 }
+            } else {
+                // Professional placeholder with contextual state
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val icon = if (isSyncing) Icons.Default.Sync else Icons.Default.ImageNotSupported
+                        val text = if (isSyncing) "Syncing proof..." else "No photo proof captured"
+                        
+                        Icon(
+                            imageVector = icon, 
+                            contentDescription = null, 
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .size(24.dp)
+                                .then(
+                                    if (isSyncing) {
+                                        val infiniteTransition = rememberInfiniteTransition(label = "Sync")
+                                        val rotation by infiniteTransition.animateFloat(
+                                            initialValue = 0f, targetValue = 360f,
+                                            animationSpec = infiniteRepeatable(animation = tween(2000, easing = LinearEasing))
+                                        )
+                                        Modifier.graphicsLayer { rotationZ = rotation }
+                                    } else Modifier
+                                )
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                    }
+                }
             }
+
             if (lat != null && lng != null) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Location: $lat, $lng",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.GpsFixed, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "GPS: $lat, $lng",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -432,7 +566,69 @@ fun EmployeeActions(
         },
         label = "ButtonTransition"
     ) { status ->
-        if (!isExpired || status == "CHECKED_OUT") {
+        if (task.status == TaskStatus.APPROVED) {
+            // FINAL STATE: Verified & Locked
+            Surface(
+                color = Color(0xFF10B981).copy(alpha = 0.1f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.VerifiedUser, null, tint = Color(0xFF10B981), modifier = Modifier.size(32.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Work Verified & Approved",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF10B981)
+                    )
+                    Text(
+                        text = "This task is finalized. No further action is required.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else if (status == "CHECKED_OUT" || task.status == TaskStatus.COMPLETED) {
+            // PSYCHOLOGICAL EFFECT: Work Submitted State
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudDone,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "Work Successfully Submitted",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Your proof of work has been uploaded. A supervisor will review and verify your submission shortly.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        } else if (!isExpired) {
             val (btnText, btnColor) = when (status) {
                 "PENDING" -> "Verify & Check In" to MaterialTheme.colorScheme.primary
                 "CHECKED_IN" -> "Complete & Check Out" to MaterialTheme.colorScheme.error

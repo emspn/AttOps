@@ -44,7 +44,12 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             getDashboardDataUseCase().collect { result ->
                 when (result) {
-                    is Result.Loading -> _uiState.update { it.copy(isLoading = true) }
+                    is Result.Loading -> {
+                        // Only show global loading if we don't have any cached data yet
+                        if (_uiState.value.data == null) {
+                            _uiState.update { it.copy(isLoading = true) }
+                        }
+                    }
                     is Result.Success -> _uiState.update {
                         it.copy(isLoading = false, data = result.data, error = null)
                     }

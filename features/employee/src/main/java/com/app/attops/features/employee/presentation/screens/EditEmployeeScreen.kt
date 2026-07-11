@@ -6,9 +6,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.app.attops.core.designsystem.components.AttOpsPrimaryButton
 import com.app.attops.core.designsystem.components.AttOpsTextField
@@ -23,7 +27,7 @@ fun EditEmployeeScreen(
     viewModel: EmployeeViewModel,
     onBackClick: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val employee = uiState.selectedEmployee
 
     LaunchedEffect(employeeId) {
@@ -35,6 +39,7 @@ fun EditEmployeeScreen(
     var phone by remember(employee) { mutableStateOf(employee?.phone ?: "") }
     var department by remember(employee) { mutableStateOf(employee?.department ?: "") }
     var designation by remember(employee) { mutableStateOf(employee?.designation ?: "") }
+    var password by remember(employee) { mutableStateOf(employee?.loginPassword ?: "") }
     var role by remember(employee) { mutableStateOf(employee?.role ?: UserRole.EMPLOYEE) }
     var status by remember(employee) { mutableStateOf(employee?.status ?: UserStatus.ACTIVE) }
     var roleExpanded by remember { mutableStateOf(false) }
@@ -83,6 +88,44 @@ fun EditEmployeeScreen(
                     label = "Employee ID",
                     enabled = false // ID shouldn't be editable
                 )
+
+                // Password Management (Only for HEAD role)
+                if (uiState.currentUserRole == UserRole.OWNER) {
+                    var passwordVisible by remember { mutableStateOf(false) }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Login Credentials",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        AttOpsTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = "Password",
+                            trailingIcon = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            singleLine = true
+                        )
+                        Text(
+                            text = when {
+                                password.isEmpty() -> "Password was not recorded. Set a new one to manage staff login."
+                                !passwordVisible -> "Tap the eye icon to reveal the current password."
+                                else -> "You can edit this password. Changes will sync immediately."
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (password.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
 
                 AttOpsTextField(
                     value = designation,
@@ -191,7 +234,8 @@ fun EditEmployeeScreen(
                                 department = department,
                                 designation = designation,
                                 role = role,
-                                status = status
+                                status = status,
+                                loginPassword = password
                             )
                         )
                     },

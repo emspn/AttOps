@@ -124,11 +124,12 @@ fun PriorityBadge(priority: TaskPriority) {
 
 @Composable
 fun StatusBadge(status: TaskStatus) {
-    val color = when (status) {
-        TaskStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
-        TaskStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
-        TaskStatus.COMPLETED -> Color(0xFF10B981)
-        TaskStatus.CANCELLED -> Color(0xFFEF4444)
+    val (label, color) = when (status) {
+        TaskStatus.PENDING -> "Pending" to MaterialTheme.colorScheme.onSurfaceVariant
+        TaskStatus.IN_PROGRESS -> "Active" to MaterialTheme.colorScheme.primary
+        TaskStatus.COMPLETED -> "Review" to Color(0xFFF59E0B) // Amber
+        TaskStatus.APPROVED -> "Done" to Color(0xFF10B981)   // Green
+        TaskStatus.CANCELLED -> "Cancelled" to Color(0xFFEF4444)
     }
     
     val containerColor = color.copy(alpha = 0.1f)
@@ -145,12 +146,11 @@ fun StatusBadge(status: TaskStatus) {
             Box(
                 modifier = Modifier
                     .size(6.dp)
-                    .padding(1.dp)
                     .background(color, CircleShape)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = status.name.replace("_", " "),
+                text = label,
                 style = MaterialTheme.typography.labelSmall,
                 color = color,
                 fontWeight = FontWeight.Bold,

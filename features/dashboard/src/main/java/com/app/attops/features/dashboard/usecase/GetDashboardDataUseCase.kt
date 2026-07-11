@@ -26,7 +26,8 @@ class GetDashboardDataUseCase @Inject constructor(
         repository.getAdminCount(),
         repository.getTaskStats(),
     ) { user, orgResult, countResult, adminResult, taskResult ->
-        if (user == null) return@combine Result.Error(message = "Session expired. Please login again.")
+        // Modern Fix: Don't trigger error immediately on startup null user
+        if (user == null) return@combine Result.Loading
         
         // Extract data safely, falling back to defaults if stats fail
         val org = (orgResult as? Result.Success)?.data

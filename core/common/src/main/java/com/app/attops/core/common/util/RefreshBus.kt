@@ -7,7 +7,7 @@ import javax.inject.Singleton
 
 @Singleton
 class RefreshBus @Inject constructor() {
-    private val _refreshEvent = MutableSharedFlow<Unit>(replay = 1).apply { tryEmit(Unit) }
+    private val _refreshEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val refreshEvent = _refreshEvent.asSharedFlow()
 
     fun trigger() {
