@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.*
@@ -111,12 +112,18 @@ fun IntegrityScorecardScreen(
                             Icon(Icons.Default.Share, contentDescription = "Export")
                         }
                         
-                        DropdownMenu(
+                            DropdownMenu(
                             expanded = showExportMenu,
                             onDismissRequest = { showExportMenu = false }
                         ) {
+                            Text(
+                                text = "Integrity Reports", 
+                                style = MaterialTheme.typography.labelSmall, 
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
                             DropdownMenuItem(
-                                text = { Text("Export as PDF") },
+                                text = { Text("Export Scorecards (PDF)") },
                                 onClick = {
                                     showExportMenu = false
                                     viewModel.exportToPdf(context)
@@ -124,12 +131,37 @@ fun IntegrityScorecardScreen(
                                 leadingIcon = { Icon(Icons.Default.PictureAsPdf, null, modifier = Modifier.size(18.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Export as CSV") },
+                                text = { Text("Export Scorecards (CSV)") },
                                 onClick = {
                                     showExportMenu = false
                                     viewModel.exportToCsv(context)
                                 },
                                 leadingIcon = { Icon(Icons.Default.Description, null, modifier = Modifier.size(18.dp)) }
+                            )
+                            
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            
+                            Text(
+                                text = "Operations Reports", 
+                                style = MaterialTheme.typography.labelSmall, 
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Detailed Master Report (PDF)") },
+                                onClick = {
+                                    showExportMenu = false
+                                    viewModel.exportMasterToPdf(context)
+                                },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.ListAlt, null, modifier = Modifier.size(18.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Detailed Master Report (CSV)") },
+                                onClick = {
+                                    showExportMenu = false
+                                    viewModel.exportMasterToCsv(context)
+                                },
+                                leadingIcon = { Icon(Icons.Default.TableChart, null, modifier = Modifier.size(18.dp)) }
                             )
                         }
                     }

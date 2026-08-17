@@ -2,6 +2,7 @@ package com.app.attops.features.reports.domain.repository
 
 import com.app.attops.core.common.result.Result
 import com.app.attops.features.reports.domain.model.IntegrityScorecard
+import com.app.attops.features.reports.domain.model.MasterReport
 import kotlinx.coroutines.flow.Flow
 
 enum class ReportFilter {
@@ -15,4 +16,5 @@ enum class ReportFilter {
 interface ReportRepository {
     fun getIntegrityScorecards(filter: ReportFilter = ReportFilter.ALL_TIME): Flow<Result<List<IntegrityScorecard>>>
     fun getEmployeeTimesheet(employeeId: String, month: Int, year: Int): Flow<Result<List<com.app.attops.core.network.model.TaskAttendance>>>
+    fun getMasterReportData(filter: ReportFilter = ReportFilter.ALL_TIME): Flow<Result<List<MasterReport>>>
 }

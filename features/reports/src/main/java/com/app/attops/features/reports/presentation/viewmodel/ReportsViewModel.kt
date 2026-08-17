@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.app.attops.core.common.result.Result
 import com.app.attops.features.reports.domain.model.IntegrityScorecard
+import com.app.attops.features.reports.domain.model.MasterReport
 import com.app.attops.features.reports.domain.repository.ReportFilter
 import com.app.attops.features.reports.domain.repository.ReportRepository
 import com.app.attops.features.reports.util.PdfGenerator
@@ -17,8 +18,9 @@ import java.io.File
 import javax.inject.Inject
 
 data class ReportsUiState(
-    val isLoading: Boolean = false, // Modern: Default to false, let first emission handle it
+    val isLoading: Boolean = false,
     val scorecards: List<IntegrityScorecard> = emptyList(),
+    val masterData: List<MasterReport> = emptyList(),
     val currentFilter: ReportFilter = ReportFilter.ALL_TIME,
     val exportFile: File? = null,
     val error: String? = null
@@ -39,17 +41,45 @@ class ReportsViewModel @Inject constructor(
     fun loadScorecards(filter: ReportFilter) {
         _uiState.update { it.copy(currentFilter = filter) }
         viewModelScope.launch {
-            repository.getIntegrityScorecards(filter).collect { result ->
-                when (result) {
-                    is Result.Loading -> _uiState.update { it.copy(isLoading = true) }
-                    is Result.Success -> _uiState.update { 
-                        it.copy(isLoading = false, scorecards = result.data, error = null) 
-                    }
-                    is Result.Error -> _uiState.update { 
-                        it.copy(isLoading = false, error = result.message) 
+            // Fetch Scorecards
+            launch {
+                repository.getIntegrityScorecards(filter).collect { result ->
+                    when (result) {
+                        is Result.Loading -> _uiState.update { it.copy(isLoading = true) }
+                        is Result.Success -> _uiState.update { 
+                            it.copy(isLoading = false, scorecards = result.data, error = null) 
+                        }
+                        is Result.Error -> _uiState.update { 
+                            it.copy(isLoading = false, error = result.message) 
+                        }
                     }
                 }
             }
+            
+            // Fetch Master Data
+            launch {
+                repository.getMasterReportData(filter).collect { result ->
+                    if (result is Result.Success) {
+                        _uiState.update { it.copy(masterData = result.data) }
+                    }
+                }
+            }
+        }
+    }
+
+    fun exportMasterToPdf(context: Context) {
+        val data = uiState.value.masterData
+        if (data.isNotEmpty()) {
+            val file = PdfGenerator.generateMasterReportPdf(context, data, uiState.value.currentFilter)
+            _uiState.update { it.copy(exportFile = file) }
+        }
+    }
+
+    fun exportMasterToCsv(context: Context) {
+        val data = uiState.value.masterData
+        if (data.isNotEmpty()) {
+            val file = PdfGenerator.generateMasterCsv(context, data, uiState.value.currentFilter)
+            _uiState.update { it.copy(exportFile = file) }
         }
     }
 

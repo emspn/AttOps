@@ -11,6 +11,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.app.attops.core.designsystem.components.AttOpsPrimaryButton
@@ -19,6 +20,10 @@ import com.app.attops.features.auth.presentation.util.GoogleSignInHandler
 import com.app.attops.features.auth.presentation.util.SignInResult
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.app.attops.core.designsystem.R as DesignR
 
 @Composable
 fun AuthChoiceScreen(
@@ -61,11 +66,20 @@ fun AuthChoiceScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                Image(
+                    painter = painterResource(id = DesignR.drawable.logo),
+                    contentDescription = "AttOps Logo",
+                    modifier = Modifier.size(120.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Text(
                     text = "Welcome to AttOps",
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.ExtraBold
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))

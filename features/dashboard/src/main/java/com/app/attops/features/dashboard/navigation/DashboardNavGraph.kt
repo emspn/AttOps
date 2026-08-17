@@ -7,9 +7,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.app.attops.core.navigation.Destination
 import com.app.attops.features.dashboard.presentation.screens.DashboardScreen
+import com.app.attops.features.dashboard.presentation.screens.NotificationScreen
 import com.app.attops.features.dashboard.presentation.screens.ProfileScreen
 import com.app.attops.features.dashboard.presentation.state.DashboardUiEvent
 import com.app.attops.features.dashboard.presentation.viewmodel.DashboardViewModel
+import com.app.attops.features.dashboard.presentation.viewmodel.NotificationViewModel
 
 fun NavGraphBuilder.dashboardNavGraph(
     navController: NavHostController,
@@ -32,7 +34,21 @@ fun NavGraphBuilder.dashboardNavGraph(
         }
 
         DashboardScreen(
-            viewModel = viewModel
+            viewModel = viewModel,
+            onNotificationsClick = { navController.navigate(Destination.Notifications) }
+        )
+    }
+
+    composable<Destination.Notifications> {
+        val viewModel: NotificationViewModel = hiltViewModel()
+        NotificationScreen(
+            viewModel = viewModel,
+            onBack = { navController.popBackStack() },
+            onNotificationClick = { type, taskId ->
+                if (taskId != null) {
+                    navController.navigate(Destination.TaskDetails(taskId))
+                }
+            }
         )
     }
 

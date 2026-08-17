@@ -31,6 +31,9 @@ sealed interface Destination {
     data object Dashboard : Destination
 
     @Serializable
+    data object Notifications : Destination
+
+    @Serializable
     data object Attendance : Destination
 
     @Serializable

@@ -123,6 +123,7 @@ class DashboardRepositoryImpl @Inject constructor(
                 mapOf(
                     "TOTAL" to tasks.size,
                     "PENDING" to tasks.count { it.status == com.app.attops.core.network.model.TaskStatus.PENDING },
+                    "IN_PROGRESS" to tasks.count { it.status == com.app.attops.core.network.model.TaskStatus.IN_PROGRESS },
                     "FOR_REVIEW" to tasks.count { it.status == com.app.attops.core.network.model.TaskStatus.COMPLETED },
                     "DONE" to tasks.count { it.status == com.app.attops.core.network.model.TaskStatus.APPROVED }
                 )

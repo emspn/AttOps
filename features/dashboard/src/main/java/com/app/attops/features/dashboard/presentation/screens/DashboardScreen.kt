@@ -31,11 +31,15 @@ import com.app.attops.core.network.model.UserRole
 import com.app.attops.features.dashboard.presentation.components.LogoutDialog
 import com.app.attops.features.dashboard.presentation.viewmodel.DashboardViewModel
 import com.app.attops.features.dashboard.usecase.DashboardData
+import androidx.compose.ui.res.painterResource
+import com.app.attops.core.designsystem.R as DesignR
+import androidx.compose.foundation.Image
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel
+    viewModel: DashboardViewModel,
+    onNotificationsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingSyncCount by viewModel.pendingSyncCount.collectAsStateWithLifecycle()
@@ -47,9 +51,18 @@ fun DashboardScreen(
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                title = { Text("AttOps", fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp) },
+                title = { 
+                    Image(
+                        painter = painterResource(id = DesignR.drawable.logo),
+                        contentDescription = "AttOps",
+                        modifier = Modifier.height(24.dp)
+                    )
+                },
                 actions = {
                     if (pendingSyncCount > 0) { SyncIndicator() }
+                    IconButton(onClick = onNotificationsClick) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    }
                 }
             )
         }
@@ -158,11 +171,14 @@ fun StatsSection(data: DashboardData, viewModel: DashboardViewModel) {
             // Admin/Owner Grid
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard("Pending", data.taskStats["PENDING"]?.toString() ?: "0", Icons.AutoMirrored.Filled.Assignment, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) { viewModel.onTasksClick() }
-                StatCard("Verified", data.taskStats["DONE"]?.toString() ?: "0", Icons.Default.CheckCircle, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) { viewModel.onTasksClick() }
+                StatCard("Active", data.taskStats["IN_PROGRESS"]?.toString() ?: "0", Icons.Default.PlayCircle, Color(0xFF3B82F6), Modifier.weight(1f)) { viewModel.onTasksClick() }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard("For Review", data.taskStats["FOR_REVIEW"]?.toString() ?: "0", Icons.Default.RateReview, MaterialTheme.colorScheme.error, Modifier.weight(1f)) { viewModel.onTasksClick() }
-                StatCard("Staff", data.employeeCount.toString(), Icons.Default.Group, MaterialTheme.colorScheme.primary, Modifier.weight(1f)) { viewModel.onEmployeesClick() }
+                StatCard("Verified", data.taskStats["DONE"]?.toString() ?: "0", Icons.Default.CheckCircle, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) { viewModel.onTasksClick() }
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                StatCard("Staff", data.employeeCount.toString(), Icons.Default.Group, MaterialTheme.colorScheme.primary, Modifier.fillMaxWidth()) { viewModel.onEmployeesClick() }
             }
         }
     }

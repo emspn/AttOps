@@ -10,9 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
+import com.app.attops.core.notifications.domain.SyncFcmTokenUseCase
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val syncFcmTokenUseCase: SyncFcmTokenUseCase
 ) : ViewModel() {
     
     // Global user state that MainActivity and other components can observe
@@ -22,4 +27,18 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = null
         )
+
+    init {
+        observeUserForTokenSync()
+    }
+
+    private fun observeUserForTokenSync() {
+        viewModelScope.launch {
+            currentUser.collectLatest { user ->
+                if (user != null) {
+                    syncFcmTokenUseCase()
+                }
+            }
+        }
+    }
 }

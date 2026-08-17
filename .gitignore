@@ -42,3 +42,6 @@ supabase/.temp/
 .env
 *.keystore
 *.jks
+*.json
+!google-services.json
+attops-*.json

@@ -49,6 +49,12 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -56,10 +62,19 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var mapShareBus: MapShareBus
     @Inject lateinit var navigationBus: NavigationBus
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
         enableEdgeToEdge()
+        askNotificationPermission()
         setContent {
             AttOpsTheme {
                 LaunchedEffect(Unit) { connectionVerifier.verify() }
@@ -70,16 +85,36 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent) // Update intent for handleIntent
         handleIntent(intent)
     }
 
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     private fun handleIntent(intent: Intent?) {
+        // Handle Map Shares
         if ((intent?.action == Intent.ACTION_SEND) && (intent.type == "text/plain")) {
             intent.getStringExtra(Intent.EXTRA_TEXT)?.let { sharedText ->
                 lifecycleScope.launch {
                     mapShareBus.postLocation(sharedText)
                     navigationBus.navigateTo(Destination.CreateTask)
                 }
+            }
+        }
+        
+        // Handle Notification Deep Links
+        val taskId = intent?.getStringExtra("task_id")
+        if (taskId != null) {
+            lifecycleScope.launch {
+                navigationBus.navigateTo(Destination.TaskDetails(taskId))
             }
         }
     }

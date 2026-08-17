@@ -8,6 +8,7 @@ import com.app.attops.core.network.model.TaskAttendance
 import com.app.attops.core.network.model.User
 import com.app.attops.core.network.model.UserRole
 import com.app.attops.features.reports.domain.model.IntegrityScorecard
+import com.app.attops.features.reports.domain.model.MasterReport
 import com.app.attops.features.reports.domain.repository.ReportFilter
 import com.app.attops.features.reports.domain.repository.ReportRepository
 import io.github.jan.supabase.auth.Auth
@@ -19,6 +20,7 @@ import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
+import com.app.attops.core.network.model.Task
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ReportRepositoryImpl @Inject constructor(
@@ -109,6 +111,67 @@ class ReportRepositoryImpl @Inject constructor(
             }.decodeList<TaskAttendance>().filter { it.checkInTime?.startsWith(prefix) == true }
             emit(Result.Success(attendances))
         } catch (e: Exception) {
+            emit(Result.Error(e))
+        }
+    }
+
+    override fun getMasterReportData(filter: ReportFilter): Flow<Result<List<MasterReport>>> = flow {
+        emit(Result.Loading)
+        try {
+            val profile = getFullProfile() ?: throw Exception("Unauthorized")
+            val orgId = profile.organizationId
+            
+            // 1. Fetch All Employees (for name mapping)
+            val users = postgrest.from("users").select(columns = Columns.ALL) {
+                filter { eq("organization_id", orgId) }
+            }.decodeList<User>()
+            val userMap = users.associateBy({ it.id }, { it.name })
+
+            // 2. Fetch All Tasks
+            val tasks = postgrest.from("tasks").select(columns = Columns.ALL) {
+                filter { eq("organization_id", orgId) }
+            }.decodeList<Task>()
+
+            // 3. Fetch Attendance Logs with Filter
+            val now = LocalDateTime.now()
+            val startTime = when (filter) {
+                ReportFilter.LAST_WEEK -> now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).withHour(0).withMinute(0)
+                ReportFilter.LAST_MONTH -> now.minusMonths(1).withDayOfMonth(1).withHour(0).withMinute(0)
+                ReportFilter.LAST_6_MONTHS -> now.minusMonths(6).withDayOfMonth(1).withHour(0).withMinute(0)
+                ReportFilter.LAST_YEAR -> now.minusYears(1).withDayOfYear(1).withHour(0).withMinute(0)
+                ReportFilter.ALL_TIME -> null
+            }
+
+            val attendances = postgrest.from("attendance_logs").select(columns = Columns.ALL) {
+                filter { 
+                    eq("organization_id", orgId)
+                    if (startTime != null) gte("check_in_time", startTime.toString())
+                }
+            }.decodeList<TaskAttendance>()
+
+            // 4. Join Data
+            val masterData = tasks.map { task ->
+                val attendance = attendances.find { it.taskId == task.id }
+                MasterReport(
+                    taskId = task.id ?: "",
+                    title = task.title,
+                    description = task.description,
+                    assignedToName = userMap[task.assignedTo] ?: "Unassigned",
+                    priority = task.priority,
+                    status = task.status,
+                    deadline = task.dueDate,
+                    checkInTime = attendance?.checkInTime,
+                    checkInLat = attendance?.checkInLat,
+                    checkInLng = attendance?.checkInLng,
+                    checkOutTime = attendance?.checkOutTime,
+                    checkOutLat = attendance?.checkOutLat,
+                    checkOutLng = attendance?.checkOutLng
+                )
+            }.sortedByDescending { it.checkInTime ?: it.deadline }
+
+            emit(Result.Success(masterData))
+        } catch (e: Exception) {
+            Log.e("ReportRepo", "Master Report Data fetch failed", e)
             emit(Result.Error(e))
         }
     }

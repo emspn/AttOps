@@ -23,11 +23,14 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import javax.inject.Inject
 
+import com.app.attops.core.notifications.domain.DeleteFcmTokenUseCase
+
 class AuthRepositoryImpl @Inject constructor(
     private val supabaseAuth: Auth,
     private val postgrest: Postgrest,
     private val functions: Functions,
-    private val sessionBus: SessionBus
+    private val sessionBus: SessionBus,
+    private val deleteFcmTokenUseCase: DeleteFcmTokenUseCase
 ) : AuthRepository {
 
     private val tag = "AUTH_REPO"
@@ -191,6 +194,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signOut(): Result<Unit> {
         return try {
+            deleteFcmTokenUseCase() // Remove FCM token before sign-out
             supabaseAuth.signOut()
             sessionBus.triggerSignOut()
             Result.Success(Unit)
