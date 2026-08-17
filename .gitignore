@@ -43,5 +43,5 @@ supabase/.temp/
 *.keystore
 *.jks
 *.json
-!google-services.json
 attops-*.json
+
