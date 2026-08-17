@@ -37,15 +37,6 @@ For the best experience, download the latest version directly to your Android de
 4. Add employees via the **Staff** tab to provide them with login credentials.
 
 ---
-
-## 📱 Screenshots
-
-| Login Screen | Dashboard | Task List |
-| :---: | :---: | :---: |
-| <img src="https://via.placeholder.com/200x400?text=Login+Screen" width="200"> | <img src="https://via.placeholder.com/200x400?text=Dashboard" width="200"> | <img src="https://via.placeholder.com/200x400?text=Tasks" width="200"> |
-
-*(Note: Replace these placeholders with actual screenshots from your app for a better presentation!)*
-
 ---
 
 ## 🔒 Security & Privacy
